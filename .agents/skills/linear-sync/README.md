@@ -1,4 +1,4 @@
-# linear-sync
+# `linear-sync`
 
 Transition the Linear issues linked to the current branch through their workflow
 states (In Progress / In Review / Done) — resolving state IDs by team **name**,
@@ -25,10 +25,10 @@ generate `config.json` from the example with your repo's facts, or copy it to
 your organisation, or the state lookups will target the wrong team and branch
 issue-IDs won't match.
 
-| Key | Meaning | Default |
-| --- | --- | --- |
+| Key              | Meaning                                                                                                                | Default           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | `linearTeamName` | Linear team **name** used to resolve live state IDs. Stable across team-key renames — always resolve by name, not key. | `"Rheged Studio"` |
-| `issueKeys` | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these. | `["A"]` |
+| `issueKeys`      | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these.                             | `["A"]`           |
 
 ## Requirements
 

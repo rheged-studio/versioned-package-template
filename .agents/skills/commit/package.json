@@ -1,6 +1,6 @@
 {
   "name": "@rheged-studio/skill-commit",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Agent skill: turn the working tree into logical, atomic Conventional Commits — classify uncommitted files in-scope vs out-of-scope against the branch merge base, show a staging plan, and never git add -A. Commits only, no push/PR/changelog/Linear.",
   "keywords": [

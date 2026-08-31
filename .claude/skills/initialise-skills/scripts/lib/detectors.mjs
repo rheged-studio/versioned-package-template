@@ -139,8 +139,10 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
     deferNonBlocking: () => ({ value: true }),
     fallbackPackage: () => ({ value: "infrastructure" }),
     // triage-pr follow-up capture: label stays an optional empty default; project
-    // is required when capture is on (linearTeamName set) — prefer facts, else
-    // flag needs-manual-input rather than writing a confident empty "no project".
+    // is the fallback catch-all when inherit from the PR's Linear issue fails
+    // (A-1541). Required when capture is on (linearTeamName set) — prefer facts,
+    // else flag needs-manual-input rather than writing a confident empty
+    // "no project".
     followUpLabel: () => ({ value: "" }),
     followUpProject: () => {
       const fromFacts = linearFacts.followUpProject;

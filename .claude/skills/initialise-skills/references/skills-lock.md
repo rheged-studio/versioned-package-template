@@ -20,10 +20,10 @@ decide which repos are behind.
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `source` | The source repo the skills were installed from. Provenance the script can't derive, so it is **supplied explicitly** as `facts.lockSource`. `null` until supplied. |
-| `ref` | The git ref installed from — `main` by convention, or a pinned tag/SHA. Supplied as `facts.lockRef`. `null` until supplied. |
+| Field    | Meaning                                                                                                                                                                                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source` | The source repo the skills were installed from. Provenance the script can't derive, so it is **supplied explicitly** as `facts.lockSource`. `null` until supplied.                                                                                          |
+| `ref`    | The git ref installed from — `main` by convention, or a pinned tag/SHA. Supplied as `facts.lockRef`. `null` until supplied.                                                                                                                                 |
 | `skills` | Every installed bundle → its version, read from each `SKILL.md` `metadata.version` (package.json `version` fallback). A full inventory, including `preflight` and `initialise-skills`. Keys are sorted; a version that can't be read is recorded as `null`. |
 
 ### Why provenance is explicit, not derived
@@ -45,7 +45,7 @@ promise the config and `.gitignore` reconciles already keep.
 
 ## Detecting updates — `check-updates.mjs`
 
-A consumer holds only its old vendored copies, so the *target* (upstream) versions
+A consumer holds only its old vendored copies, so the _target_ (upstream) versions
 must come from a checkout of the source repo:
 
 ```bash
@@ -60,14 +60,14 @@ node scripts/check-updates.mjs --source <agent-skills-checkout> [--ref <tag-or-s
 
 It diffs the lock's `skills` against the target versions and partitions them:
 
-| Field | Meaning |
-| --- | --- |
-| `updates` | `[{ name, from, to, bump }]` where the target is strictly newer (`bump` ∈ `major`/`minor`/`patch`) — the actionable upgrade list. |
-| `upToDate` | Skills already at the target version. |
-| `added` | `[{ name, version }]` present upstream but not in the lock (a new skill available to install). |
-| `removed` | Skills in the lock but absent upstream. |
-| `downgrades` | `[{ name, from, to }]` where the consumer is ahead of the target. |
-| `unknown` | `[{ name, from, to }]` where a version couldn't be compared. |
+| Field              | Meaning                                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `updates`          | `[{ name, from, to, bump }]` where the target is strictly newer (`bump` ∈ `major`/`minor`/`patch`) — the actionable upgrade list.                |
+| `upToDate`         | Skills already at the target version.                                                                                                            |
+| `added`            | `[{ name, version }]` present upstream but not in the lock (a new skill available to install).                                                   |
+| `removed`          | Skills in the lock but absent upstream.                                                                                                          |
+| `downgrades`       | `[{ name, from, to }]` where the consumer is ahead of the target.                                                                                |
+| `unknown`          | `[{ name, from, to }]` where a version couldn't be compared.                                                                                     |
 | `updatesAvailable` | `true` when `updates` **or** `added` is non-empty — i.e. the consumer is behind on a locked skill or has yet to vendor a brand-new upstream one. |
 
 Versions compare on the `major.minor.patch` release core (pre-release/build
@@ -75,7 +75,7 @@ metadata is ignored). A fleet-update orchestrator uses `updatesAvailable` to ski
 already-current repos and `updates` to populate an update PR's body.
 
 > **`updatesAvailable: false` is not the same as "nothing to report."** The flag
-> reflects only the *forward-actionable* buckets (`updates` + `added`). A repo can
+> reflects only the _forward-actionable_ buckets (`updates` + `added`). A repo can
 > have `updatesAvailable: false` yet still carry `removed`, `downgrades`, or
 > `unknown` entries — surfaced as their own fields (and, in the human report, as
 > their own lines) but deliberately not treated as an available update. A consumer

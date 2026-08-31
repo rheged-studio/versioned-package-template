@@ -19,10 +19,10 @@ compatibility: >-
   The bundled diagnosis helper needs Node.js >=22 (ES modules, Node built-ins
   only — no npm dependencies, no build step, no tsx). Designed for repos whose
   releases run through release-please via an external orchestrator (the
-  road-runner-bot `release-orchestrator`), with a publish-only `release.yml`
+  Clacks (`rheged-studio/clacks`)), with a publish-only `release.yml`
   gated on a version-vs-tag check.
 metadata:
-  version: 0.2.1
+  version: 0.2.2
   author: Rob Easthope
 allowed-tools: Read, Glob, Grep, Bash(gh:*), Bash(git:*), Bash(node:*)
 ---
@@ -48,12 +48,12 @@ uses under multi-commit history (A-824) — not merged PR titles.
 
 ## What it inspects
 
-| Signal | What it answers | How to read / fix it |
-| --- | --- | --- |
-| **Version preview** | What bump and version would the Conventional-Commit subjects on commits since the last tag on `origin/<mainBranch>` produce? | `feat:`→minor, `fix:`/`perf:`/`revert:`→patch, `!`/`BREAKING CHANGE:`→major; `docs`/`chore`/`ci`/`refactor`/`test`/`build`/`style`→none. The strongest wins across **all** commits (merge commits excluded). A `feat:` later `revert:`ed in the same window still implies **minor** — no cancel/netting, matching release-please. `none` means nothing release-triggering has landed since the last tag — no release will cut. |
-| **Release PR** | Is the `release-please--branches--main` PR open, and is its required check (`GO/NO GO`) green? | If open and green, the orchestrator can squash-merge it. If the check is pending/red, the merge is blocked — chase that check. If none is open, release-please hasn't opened one (often because nothing release-triggering merged, or the pipeline is stalled — see below). |
-| **Stale `autorelease: pending`** | Does the **last merged** release PR still carry the `autorelease: pending` label? | This is the recurring stall: when a merged release PR keeps that label, release-please **aborts the next release** and the pipeline silently stops firing. Remediation: remove the label from that PR, then re-run the orchestrator (or wait for its cron tick). |
-| **Tag-vs-version parity** | Does a `v<package.json version>` tag already exist? | This is the `release.yml` **version-vs-tag gate**. Tag exists → clean no-op (this version is already published). Tag missing → **publishing is pending** for that version (the gate would run the publish path on the next `main` push). |
+| Signal                           | What it answers                                                                                                              | How to read / fix it                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Version preview**              | What bump and version would the Conventional-Commit subjects on commits since the last tag on `origin/<mainBranch>` produce? | `feat:`→minor, `fix:`/`perf:`/`revert:`→patch, `!`/`BREAKING CHANGE:`→major; `docs`/`chore`/`ci`/`refactor`/`test`/`build`/`style`→none. The strongest wins across **all** commits (merge commits excluded). A `feat:` later `revert:`ed in the same window still implies **minor** — no cancel/netting, matching release-please. `none` means nothing release-triggering has landed since the last tag — no release will cut. |
+| **Release PR**                   | Is the `release-please--branches--main` PR open, and is its required check (`GO/NO GO`) green?                               | If open and green, the orchestrator can squash-merge it. If the check is pending/red, the merge is blocked — chase that check. If none is open, release-please hasn't opened one (often because nothing release-triggering merged, or the pipeline is stalled — see below).                                                                                                                                                    |
+| **Stale `autorelease: pending`** | Does the **last merged** release PR still carry the `autorelease: pending` label?                                            | This is the recurring stall: when a merged release PR keeps that label, release-please **aborts the next release** and the pipeline silently stops firing. Remediation: remove the label from that PR, then re-run the orchestrator (or wait for its cron tick).                                                                                                                                                               |
+| **Tag-vs-version parity**        | Does a `v<package.json version>` tag already exist?                                                                          | This is the `release.yml` **version-vs-tag gate**. Tag exists → clean no-op (this version is already published). Tag missing → **publishing is pending** for that version (the gate would run the publish path on the next `main` push).                                                                                                                                                                                       |
 
 ## Configuration
 
@@ -63,12 +63,12 @@ is generated per consumer and is not itself tracked). Read `config.json` at the
 start of a run and use its values throughout. Edit your copied `config.json` to
 match the consuming repo.
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `mainBranch` | The trunk release-please releases from. | `main` |
-| `releaseBranch` | The branch release-please opens its release PR on. | `release-please--branches--main` |
-| `requiredCheck` | The exact name (incl. emoji) of the required status check the orchestrator polls before merging the release PR. | `GO/NO GO` |
-| `stalePendingLabel` | The label release-please applies to a release PR while a release is in flight; **stale** when it lingers on a *merged* PR. | `autorelease: pending` |
+| Key                 | Meaning                                                                                                                    | Default                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `mainBranch`        | The trunk release-please releases from.                                                                                    | `main`                           |
+| `releaseBranch`     | The branch release-please opens its release PR on.                                                                         | `release-please--branches--main` |
+| `requiredCheck`     | The exact name (incl. emoji) of the required status check the orchestrator polls before merging the release PR.            | `GO/NO GO`                       |
+| `stalePendingLabel` | The label release-please applies to a release PR while a release is in flight; **stale** when it lingers on a _merged_ PR. | `autorelease: pending`           |
 
 ## Usage
 
@@ -167,7 +167,7 @@ write-capable skill) to carry out.
 - `gh auth status` fails → stop and tell the user to run `gh auth login`.
 - The helper exits non-zero (rate limit, permissions, GraphQL/REST error) → report
   it; do not fabricate signals. Fall back to a manual `gh pr list --state merged
-  --head <releaseBranch> --json labels` to inspect the stale-pending label by hand.
+--head <releaseBranch> --json labels` to inspect the stale-pending label by hand.
 - No tags yet (a never-released repo) → the version preview counts **all** merged
   PRs, and the parity block reports the first `v<version>` tag as pending. That is
   expected for the bootstrap release.

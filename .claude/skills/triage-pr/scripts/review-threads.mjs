@@ -56,11 +56,14 @@ import { realpathSync } from "node:fs";
 // sides, so a consumer's config can use either form.
 const DEFAULT_BOTS = ["claude", "cursor", "coderabbitai"];
 
-// Non-resolving defer marker written by respond-threads.mjs at SKILL.md Step 8. A
-// bot thread bearing it in any comment is a pending follow-up, not a fresh finding,
-// so buildResult buckets it into `deferredThreads`. Keep this string in sync with
-// respond-threads.mjs (DEFER_PENDING_MARKER there).
-const DEFER_PENDING_MARKER = "<!-- triage-pr:defer-pending -->";
+// Non-resolving follow-up-pending markers written by respond-threads.mjs at SKILL.md
+// Step 8. A bot thread bearing either in any comment is a pending follow-up, not a
+// fresh finding, so buildResult buckets it into `deferredThreads`. Keep these
+// strings in sync with respond-threads.mjs (FOLLOW_UP_PENDING_MARKERS there).
+const FOLLOW_UP_PENDING_MARKERS = [
+  "<!-- triage-pr:follow-up-pending -->",
+  "<!-- triage-pr:defer-pending -->",
+];
 
 // ---- pure transform (no network) ----------------------------------------
 
@@ -200,12 +203,13 @@ export function selectSummaryComments(commentNodes, isBot) {
 }
 
 /**
- * True when any of a thread's comments carries the non-resolving defer marker.
+ * True when any of a thread's comments carries a follow-up-pending marker (new or legacy).
  */
-function isDeferPending(thread) {
-  return thread.comments.some((comment) =>
-    String(comment.body ?? "").includes(DEFER_PENDING_MARKER),
-  );
+function isFollowUpPending(thread) {
+  return thread.comments.some((comment) => {
+    const body = String(comment.body ?? "");
+    return FOLLOW_UP_PENDING_MARKERS.some((marker) => body.includes(marker));
+  });
 }
 
 /**
@@ -237,7 +241,7 @@ export function buildResult({
     const thread = shapeThread(node);
     if (!isBot(thread.author)) {
       humanThreads.push(thread);
-    } else if (isDeferPending(thread)) {
+    } else if (isFollowUpPending(thread)) {
       deferredThreads.push(thread);
     } else {
       unresolvedThreads.push(thread);
@@ -563,15 +567,14 @@ function selfTest() {
       line: 3,
       path: "c.ts",
     },
-    // A bot thread we deferred (Step 8): the bot's finding plus our own
-    // non-resolving marker reply. It must bucket into deferredThreads.
+    // A bot thread with a pending follow-up (Step 8): legacy marker still buckets.
     {
       comments: {
         nodes: [
           { author: { login: "coderabbitai" }, body: "extract this helper" },
           {
             author: { login: "RobEasthope" },
-            body: `Noted as deferred.\n\n${DEFER_PENDING_MARKER}`,
+            body: `Noted for follow-up.\n\n${FOLLOW_UP_PENDING_MARKERS[1]}`,
           },
         ],
       },
@@ -580,6 +583,23 @@ function selfTest() {
       isResolved: false,
       line: 12,
       path: "e.ts",
+    },
+    // Same bucket with the new follow-up-pending marker.
+    {
+      comments: {
+        nodes: [
+          { author: { login: "claude" }, body: "consider refactoring" },
+          {
+            author: { login: "RobEasthope" },
+            body: `Noted for follow-up.\n\n${FOLLOW_UP_PENDING_MARKERS[0]}`,
+          },
+        ],
+      },
+      id: "T_bot_follow_up_pending",
+      isOutdated: false,
+      isResolved: false,
+      line: 4,
+      path: "f.ts",
     },
   ];
   const commentNodes = [
@@ -683,10 +703,16 @@ function selfTest() {
         !ids(result.unresolvedThreads).includes("T_human"),
     },
     {
-      name: "defer-pending bot thread is bucketed into deferredThreads",
+      name: "follow-up-pending bot thread (legacy marker) is bucketed into deferredThreads",
       ok:
         ids(result.deferredThreads).includes("T_bot_deferred") &&
         !ids(result.unresolvedThreads).includes("T_bot_deferred"),
+    },
+    {
+      name: "follow-up-pending bot thread (new marker) is bucketed into deferredThreads",
+      ok:
+        ids(result.deferredThreads).includes("T_bot_follow_up_pending") &&
+        !ids(result.unresolvedThreads).includes("T_bot_follow_up_pending"),
     },
     {
       name: "a plain unresolved bot thread stays out of deferredThreads",
