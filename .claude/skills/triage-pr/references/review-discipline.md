@@ -11,12 +11,13 @@ the community `receiving-code-review` and `verification-before-completion` skill
 When `humanEnvelope` is `true` (the default), run READ → UNDERSTAND → VERIFY →
 EVALUATE for every finding and produce a disposition plan — then **halt** for one
 same-session batch `[y/N]` before IMPLEMENT / Linear create / resolving replies.
-Proposed-defer threads are marked `defer-pending` (non-resolving) when the plan is
-presented so a restart does not re-emit them while the human decides. The
-envelope covers accept, decline, and defer→Linear in one gate, including findings
-from later AI re-reviews on the same PR. `--auto-apply` / `humanEnvelope: false`
+Proposed follow-up threads are marked `follow-up-pending` (non-resolving) when the
+plan is presented so a restart does not re-emit them while the human decides. The
+envelope covers accept, decline, and create a follow-up issue in one gate, including
+findings from later AI re-reviews on the same PR. `--auto-apply` / `humanEnvelope: false`
 skips the envelope and restores legacy auto Phase B (impact-gated fix-now; mark
-`defer-pending` as soon as a defer is classified; Linear-only gate for defers).
+`follow-up-pending` as soon as a follow-up is classified; Linear-only gate for
+follow-ups). Legacy CLI aliases `defer` / `defer-pending` still work.
 
 ## Receiving review feedback — the six steps
 
@@ -25,38 +26,39 @@ performative agreement**: a review bot is frequently wrong, partially right, or
 missing context, and applying its suggestion blind is how a green PR ships a
 regression.
 
-1. **READ.** Absorb the whole finding — the comment body *and* the cited file and
+1. **READ.** Absorb the whole finding — the comment body _and_ the cited file and
    line — before reacting. Don't start editing on the strength of the summary.
 2. **UNDERSTAND.** Restate the claim in your own words. If you can't, the finding
    is unclear; treat that as a signal to verify harder, not to guess.
 3. **VERIFY.** Check the suggestion against the **actual codebase**. Open the
    cited lines. Confirm the problem is real, reproduces, and isn't already handled
    elsewhere. Never trust the bot's framing of the code — read the code.
-4. **EVALUATE.** Decide whether the change is correct *for this project*: in
+4. **EVALUATE.** Decide whether the change is correct _for this project_: in
    scope, compatible with the stack, and not a YAGNI or architecture violation.
    When it is valid and in-scope **and** `deferNonBlocking` is `true`, also
-   classify **impact** (see **When to fix now vs defer** below) — propose accept
-   only if high-impact; otherwise propose defer even though it is in scope. When
+   classify **impact** (see **When to fix now vs follow-up** below) — propose accept
+   only if high-impact; otherwise propose follow-up even though it is in scope. When
    `deferNonBlocking` is `false`, every valid in-scope finding is proposed as
    accept.
 5. **RESPOND** — only **after** the human envelope approves (or under
    `--auto-apply`). Symmetrically, every actioned thread ends replied-to **and**
    resolved:
-   - *Decline* → reply with the technical reasoning, then resolve.
-   - *Accept* → reply referencing the fixing commit (`Addressed in <sha>.`), then
+   - _Decline_ → reply with the technical reasoning, then resolve.
+   - _Accept_ → reply referencing the fixing commit (`Addressed in <sha>.`), then
      resolve — but only once that fix is proven (and, on a ready PR, CI-green; see
      **Resolve timing** below). When `replyOnAccept` is `false`, resolve without
      the reply.
-   - *Outdated* (cited code is gone) → resolve, no reply.
-   - *Defer* (valid but **out of scope** for this PR, **or** — when
+   - _Outdated_ (cited code is gone) → resolve, no reply.
+   - _Follow-up_ (valid but **out of scope** for this PR, **or** — when
      `deferNonBlocking` is on — **in-scope but not high-impact**) → mark
-     `defer-pending` as soon as the finding is classified (envelope: when the
-     plan is presented; auto-apply: on classify). Linear create + final defer
+     `follow-up-pending` as soon as the finding is classified (envelope: when the
+     plan is presented; auto-apply: on classify). Linear create + final follow-up
      reply happen only after envelope approval, or under auto-apply after the
      Linear-only gate.
 
    The reply is the durable, per-finding audit trail reviewers and humans skimming
    the PR rely on; a silently-resolved accept loses it.
+
 6. **IMPLEMENT.** Apply accepted findings **one at a time**, verifying each before
    the next — only after envelope approval (or under auto-apply). Batching changes
    hides which one broke something.
@@ -78,19 +80,19 @@ Push back — with technical reasoning, not defensiveness — when the suggestio
 - conflicts with the codebase's technical stack or conventions; or
 - contradicts a deliberate architectural decision.
 
-A declined finding still gets a reply explaining *why*, then the thread is
+A declined finding still gets a reply explaining _why_, then the thread is
 resolved so it doesn't re-surface.
 
-## When to fix now vs defer
+## When to fix now vs follow-up
 
 After a finding clears EVALUATE (correct, not YAGNI/architecture), choose
-**accept** vs **defer** for the disposition plan:
+**accept** vs **follow-up** for the disposition plan:
 
-- **Out of scope** → always defer (regardless of `deferNonBlocking`).
+- **Out of scope** → always follow-up (regardless of `deferNonBlocking`).
 - **In scope**, `deferNonBlocking` is `false` → accept and fix now (legacy
   scope-only behaviour).
 - **In scope**, `deferNonBlocking` is `true` (the default) → accept and fix now
-  only when **high-impact**. Otherwise defer.
+  only when **high-impact**. Otherwise follow-up.
 
 A finding is **high-impact** when **any** of these hold (classify yourself — do
 **not** trust bot severity labels such as CodeRabbit ⚠️/🧹 or Bugbot grades):
@@ -138,7 +140,7 @@ Two reasons it stays with the human:
 
 > **The workflow ban is not relaxed by this gate.** Those CI lint-step knobs live in
 > `.github/workflows/*`, which **Never greenwash** forbids the agent from editing
-> **at all**. Listing them here means such a failure is *reported* to the developer
+> **at all**. Listing them here means such a failure is _reported_ to the developer
 > like any other gated item — it does **not** open a sign-off path for the agent to
 > edit a workflow. Where the two rules overlap, the stricter one wins: the agent
 > never touches it, and the developer makes the change themselves.
@@ -193,14 +195,14 @@ how it is implemented, recorded so the SKILL.md steps have something to point at
 ### Canonical resolve mechanism
 
 Resolve a thread with GitHub's GraphQL **`resolveReviewThread`** mutation
-(`PRRT_`-prefixed thread ids). It is the *only* per-thread programmatic resolve —
+(`PRRT_`-prefixed thread ids). It is the _only_ per-thread programmatic resolve —
 there is no REST equivalent — and it is idempotent, so calling it on an
 already-resolved thread is safe. We **always pair it with a reply**: the reply is
 the acknowledgement reviewers (CodeRabbit included) and humans read; resolving
 alone is the silent-resolve this discipline exists to prevent.
 
 We deliberately do **not** use the bulk **`@coderabbitai resolve`** command. It
-marks *every* CodeRabbit comment resolved at once, which would sweep up declined or
+marks _every_ CodeRabbit comment resolved at once, which would sweep up declined or
 not-yet-handled findings and defeat the per-finding discipline. CodeRabbit's own
 docs are silent on whether a GraphQL-resolve updates its internal state; pairing
 the resolve with an explicit reply is the robust path either way.
@@ -208,7 +210,7 @@ the resolve with an explicit reply is the robust path either way.
 ### Resolve timing vs CI
 
 For an **accepted** finding, resolve only **after** the fixing commit is pushed
-*and* its proving command passes — and, on a ready PR, after that fix's CI round is
+_and_ its proving command passes — and, on a ready PR, after that fix's CI round is
 green. Resolving optimistically on push risks leaving a thread resolved when the
 fix later regresses in CI. Declines and outdated threads carry no code, so they
 resolve immediately.
@@ -223,8 +225,8 @@ the next pass, a thread already bearing our marker is **skipped**, and the
 consolidated comment is **edited in place** rather than re-posted. Under
 `humanEnvelope`, new findings after apply trigger another full envelope (not
 silent auto-apply). A run converges when CI is green and every bot thread is
-handled (resolved-by-us, declined+resolved, human-and-left-alone, or deferred with
-a ticket) with no accepted fix still awaiting CI-green — all bounded by
+handled (resolved-by-us, declined+resolved, human-and-left-alone, or filed as
+follow-up with a ticket) with no accepted fix still awaiting CI-green — all bounded by
 `maxCiRounds`.
 
 ### Issue-level comments — respond vs noise
@@ -258,11 +260,11 @@ implies success without fresh verification breaks this rule.
 
 Proving commands by claim:
 
-| Claim | Proof |
-| --- | --- |
-| Lint clean | the lint command's output showing zero errors |
-| Tests pass | the test command's output showing zero failures |
-| Build succeeds | the build command exiting `0` |
+| Claim          | Proof                                                             |
+| -------------- | ----------------------------------------------------------------- |
+| Lint clean     | the lint command's output showing zero errors                     |
+| Tests pass     | the test command's output showing zero failures                   |
+| Build succeeds | the build command exiting `0`                                     |
 | Manifest valid | `npx --yes skills-ref@0.1.5 validate ./skills/<name>` exiting `0` |
-| CI green | `gh pr checks <pr>` showing every required check passed |
-| Bug fixed | the original failing symptom now passing |
+| CI green       | `gh pr checks <pr>` showing every required check passed           |
+| Bug fixed      | the original failing symptom now passing                          |

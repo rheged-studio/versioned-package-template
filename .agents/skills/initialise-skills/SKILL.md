@@ -24,7 +24,7 @@ compatibility: >-
   App / token check is optional — it uses `gh` when authenticated, else falls
   back to a reminder.
 metadata:
-  version: 0.11.0
+  version: 0.11.2
   author: Rob Easthope
 allowed-tools: Read, Bash(node:*), Bash(git:*), Bash(gh:*), mcp__linear-server__list_teams, mcp__linear-server__get_team, mcp__linear-server__list_projects
 ---
@@ -49,14 +49,14 @@ existing `config.json` (which may be absent on a fresh install). Each key is the
 classified by a three-way comparison — example placeholder vs existing value vs
 detected value:
 
-| Status | Meaning | Action |
-| --- | --- | --- |
-| `inferred` | No value yet, or still the example placeholder | Write the detected value |
-| `unchanged` | Existing value already equals what we detected | No-op |
-| `drift` | A real value that differs from detection — a deliberate edit | **Keep it**; report both values |
-| `needs-manual-input` | No detector and no value (e.g. a Linear slug with no MCP) | Leave for you to supply |
-| `manual-kept` | A real value we have no detector for | Keep it |
-| `unknown-kept` | A key in `config.json` no skill template knows about | Keep it, untouched |
+| Status               | Meaning                                                      | Action                          |
+| -------------------- | ------------------------------------------------------------ | ------------------------------- |
+| `inferred`           | No value yet, or still the example placeholder               | Write the detected value        |
+| `unchanged`          | Existing value already equals what we detected               | No-op                           |
+| `drift`              | A real value that differs from detection — a deliberate edit | **Keep it**; report both values |
+| `needs-manual-input` | No detector and no value (e.g. a Linear slug with no MCP)    | Leave for you to supply         |
+| `manual-kept`        | A real value we have no detector for                         | Keep it                         |
+| `unknown-kept`       | A key in `config.json` no skill template knows about         | Keep it, untouched              |
 
 Detection is keyed by config-**key name**, not by skill, so one detector serves
 every skill that uses a key (one `baseBranch` detector covers `changelog`,
@@ -68,7 +68,7 @@ between single-package and monorepo are in
 [`references/monorepo-config.md`](references/monorepo-config.md).
 
 `preflight` is intentionally skipped: it self-detects its base branch and
-workspaces and reads an *optional* `preflight.config.json` at the repo root, not
+workspaces and reads an _optional_ `preflight.config.json` at the repo root, not
 an in-bundle `config.json` — so there is nothing for this skill to populate. (Its
 one trace here is the `.gitignore` step below: when preflight is installed, its
 `.preflight-summary.json` scratch output is added to the repo's `.gitignore`.)
@@ -105,8 +105,11 @@ at the repo root — a machine-readable inventory of which skill versions are in
 and where they came from:
 
 ```json
-{ "source": "https://github.com/rheged-studio/agent-skills", "ref": "main",
-  "skills": { "changelog": "1.2.0", "send-it": "2.1.3", "…": "…" } }
+{
+  "source": "https://github.com/rheged-studio/agent-skills",
+  "ref": "main",
+  "skills": { "changelog": "1.2.0", "send-it": "2.1.3", "…": "…" }
+}
 ```
 
 - **`skills`** — a full inventory of every installed bundle (including `preflight`
@@ -142,7 +145,9 @@ This is the foundation for detecting which repos are behind — see
    (`linearTeamName`, `linearWorkspaceSlug`, and `followUpProject` when capture is
    on), fetch the value via the Linear MCP when it is available —
    `mcp__linear-server__list_teams` for the team name,
-   `mcp__linear-server__list_projects` for the repo's Linear project, and the
+   `mcp__linear-server__list_projects` for the **fallback catch-all** project
+   (Rheged estate: `Follow-up issues` — not a per-repo home project; triage-pr
+   inherits the PR's live Linear project when it can, A-1541), and the
    workspace slug from the team/organisation — otherwise ask the user. Collect
    these into a `facts` object. Also add the **lock provenance** here:
    `lockSource` (the source repo the skills were installed from — the
@@ -268,7 +273,7 @@ hand-edit is equally valid and equally safe.
 ## Setting an arbitrary value
 
 Detection, the stdin `facts`, and `acceptDrift` between them cover every value the
-script can derive or accept — but not a value you simply want to *choose* (a
+script can derive or accept — but not a value you simply want to _choose_ (a
 non-default base branch, a bespoke changelog directory, a boolean toggle). For
 those, `--set <skill>.<key>=<value>` writes an arbitrary value straight into a
 named skill's `config.json`:
@@ -383,5 +388,5 @@ so a fleet orchestrator can check any repo without changing directory. See
   the secret list, so it degrades to a "couldn't verify — confirm
   `CLAUDE_CODE_OAUTH_TOKEN` manually" note — a can't-tell, never a failure. The
   textual `/install-github-app` reminder is the separate **absent** outcome, emitted
-  only when the probe *succeeds* and finds the secret genuinely missing. Either way
+  only when the probe _succeeds_ and finds the secret genuinely missing. Either way
   the skill still runs fully.

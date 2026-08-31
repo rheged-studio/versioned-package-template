@@ -23,7 +23,7 @@ compatibility: >-
   alongside this one. A missing `linear-sync` or Linear MCP server skips the In
   Review writeback silently; a missing `triage-pr` warns and stops at the open PR.
 metadata:
-  version: 0.8.0
+  version: 0.8.1
   author: Rob Easthope
 allowed-tools: Write, Read, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(pnpm:*), Bash(node:*), Bash(npx:*), mcp__linear-server__get_issue, mcp__linear-server__save_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects
 ---
@@ -83,14 +83,14 @@ A few knobs live in [`config.json`](config.json) beside this file; edit your
 copied `config.json` to match the consuming repo (a neutral
 [`config.example.json`](config.example.json) ships as a template):
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `baseBranch` | The trunk the branch diff is taken against (`origin/<baseBranch>`) and the PR base. | `"main"` |
-| `shippablePaths` *(advisory)* | Path prefixes that make up the published surface — a documentation hint for reviewers, **not** the release decision (A-598; see Step 6). Release-type is decided by the change's semantic category, so these no longer gate the title. Kept for the optional publish-surface cross-check note. | `["skills/"]` |
-| `shippableManifestKeys` *(advisory)* | `package.json` keys that form the published-`files` surface — same advisory role as `shippablePaths`, no longer a release gate. | `["name", "version", "files", "publishConfig"]` |
-| `changelog` *(optional)* | Whether to author a dated `changelog/` entry at all (Steps 7–8). Set `false` for repos with **no changelog flow** — no `changelog/` directory and no `changelog` skill installed (e.g. a `private` repo with no release pipeline). When `false`, send-it skips changelog authoring entirely, and the category decision continues to drive only the PR title. **Omit it (or set `true`) whenever the `changelog` skill is installed.** | `true` |
-| `bundleVersioning` *(optional)* | Enables the per-bundle version-bump check (Step 6) for repos that ship many independently-versioned skill bundles. An object `{ root, manifest, skillFile }` naming the bundle parent dir and the manifest / skill-manifest filenames each bundle carries. **Omit it entirely in single-package repos** — the check then no-ops. | unset (disabled) |
-| `triage` *(optional)* | Whether the run chains into the [`triage-pr`](../triage-pr/SKILL.md) skill once the PR is open (Step 11) — the CI fix loop, the promote-on-proven-green flip, then Phase B up to triage-pr's human envelope. `true` (the default) makes one `/send-it` drive the whole pipeline; set `false` in repos that want send-it to stop at the open PR, or where `triage-pr` isn't installed. `--skip-triage` does the same for a single run (A-1151). | `true` |
+| Key                                  | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                        | Default                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `baseBranch`                         | The trunk the branch diff is taken against (`origin/<baseBranch>`) and the PR base.                                                                                                                                                                                                                                                                                                                                                            | `"main"`                                        |
+| `shippablePaths` _(advisory)_        | Path prefixes that make up the published surface — a documentation hint for reviewers, **not** the release decision (A-598; see Step 6). Release-type is decided by the change's semantic category, so these no longer gate the title. Kept for the optional publish-surface cross-check note.                                                                                                                                                 | `["skills/"]`                                   |
+| `shippableManifestKeys` _(advisory)_ | `package.json` keys that form the published-`files` surface — same advisory role as `shippablePaths`, no longer a release gate.                                                                                                                                                                                                                                                                                                                | `["name", "version", "files", "publishConfig"]` |
+| `changelog` _(optional)_             | Whether to author a dated `changelog/` entry at all (Steps 7–8). Set `false` for repos with **no changelog flow** — no `changelog/` directory and no `changelog` skill installed (e.g. a `private` repo with no release pipeline). When `false`, send-it skips changelog authoring entirely, and the category decision continues to drive only the PR title. **Omit it (or set `true`) whenever the `changelog` skill is installed.**          | `true`                                          |
+| `bundleVersioning` _(optional)_      | Enables the per-bundle version-bump check (Step 6) for repos that ship many independently-versioned skill bundles. An object `{ root, manifest, skillFile }` naming the bundle parent dir and the manifest / skill-manifest filenames each bundle carries. **Omit it entirely in single-package repos** — the check then no-ops.                                                                                                               | unset (disabled)                                |
+| `triage` _(optional)_                | Whether the run chains into the [`triage-pr`](../triage-pr/SKILL.md) skill once the PR is open (Step 11) — the CI fix loop, the promote-on-proven-green flip, then Phase B up to triage-pr's human envelope. `true` (the default) makes one `/send-it` drive the whole pipeline; set `false` in repos that want send-it to stop at the open PR, or where `triage-pr` isn't installed. `--skip-triage` does the same for a single run (A-1151). | `true`                                          |
 
 The team name, issue-ID prefixes, and workspace slug are **not** configured here —
 they live in the `linear-sync` and `changelog` skills' own `config.json` files,
@@ -128,7 +128,7 @@ before any other step runs. Skip this step otherwise.
    - **Otherwise**: treat as a branch name and match against the
      `branch refs/heads/<name>` field.
 3. **No match** — exit immediately with: `No worktree found for <arg>. Available:
-   <comma-separated paths>`.
+<comma-separated paths>`.
 4. **Match** — `cd` into the resolved worktree path. The `cwd` persists for the
    rest of the workflow, so all subsequent `git` and `gh` calls operate on the
    worktree.
@@ -192,7 +192,7 @@ don't use pnpm.)
 ### Step 3: Commit uncommitted changes — delegate to the `commit` skill
 
 send-it is the all-in-one finisher: whatever's uncommitted should be committed
-before the changelog/PR work begins — but only what belongs to *this* branch.
+before the changelog/PR work begins — but only what belongs to _this_ branch.
 
 Follow the [`commit`](../commit/SKILL.md) skill to do this: classify uncommitted
 files **in-scope vs out-of-scope** against the merge base (`git merge-base HEAD
@@ -211,7 +211,7 @@ The Conventional-Commit types this step writes are the input to Step 6's release
 decision (`derive-bump.mjs` reads them back out of the commits), so the honest
 types and `!` / `BREAKING CHANGE:` markers matter.
 
-This delegation covers only the *initial* commit of uncommitted work. send-it's own
+This delegation covers only the _initial_ commit of uncommitted work. send-it's own
 later, targeted commits stay here: the lockfile refresh (Step 2), the optional
 bundle-version bump (Step 6), and the changelog entry (Step 8).
 
@@ -331,7 +331,7 @@ as `feat:`/`fix:` and cut a spurious release.)
    ```
 
    It prints `{ "configured", "unbumped": [{ name, currentVersion, suggestedBump,
-   suggestedVersion, manifestPath, skillPath }], "bumped" }`. For **each** `unbumped`
+suggestedVersion, manifestPath, skillPath }], "bumped" }`. For **each** `unbumped`
    entry, surface the proposal and apply it on confirmation:
 
    > `skills/<name>` changed but its version is still `<currentVersion>`. Suggested
@@ -364,7 +364,7 @@ as `feat:`/`fix:` and cut a spurious release.)
    > ⚠️ **Keep the title honest with the commits.** A mistyped prefix misleads
    > reviewers and the completeness gate — a `feat:` on a docs-only branch, or a
    > `chore:` on a real fix. For feature PRs the post-merge bump follows the landed
-   > commit subjects; for squash paths the title *is* the declaration. Derive the
+   > commit subjects; for squash paths the title _is_ the declaration. Derive the
    > title from the change's semantic category (the commit types) so they stay
    > aligned.
 
@@ -405,6 +405,7 @@ Follow the [`changelog`](../changelog/SKILL.md) skill to author or update the en
    entry keeps `version` blank, as no release is cut for it). This includes `pr`: no
    step here writes it back after the PR opens; the post-merge enricher resolves it
    from the entry's `branch:`.
+
 3. Run the enrichment scripts: `node skills/changelog/scripts/set-affected-packages.mjs`
    then `node skills/changelog/scripts/add-links.mjs`.
 4. **Validate:** `node skills/changelog/scripts/validate-changelog.mjs`. It must pass
@@ -442,7 +443,7 @@ fan-out automation keep using squash outside this skill.
 
 1. Check for an existing PR: `gh pr view --json number,url 2>/dev/null`.
 2. **If creating:** `gh pr create --base <base> --draft --title "<title>" --body
-   "<body>"`. Use `--ready` (the flag) instead of `--draft` if the user passed
+"<body>"`. Use `--ready` (the flag) instead of `--draft` if the user passed
    `--ready`.
 3. **If updating:** `gh pr edit <number> --title "<title>" --body "<body>"`.
 4. Return the PR URL and number via `gh pr view --json url,number`.
@@ -465,6 +466,7 @@ fan-out automation keep using squash outside this skill.
 ## Related Issues
 
 <!-- Linear identifiers extracted from the branch and commits -->
+
 - <ISSUE-ID>
 
 ## Test Plan
@@ -597,7 +599,7 @@ the linked issues are already In Review before triage begins.
 >
 > **Re-runs are safe.** A second `/send-it` re-enters the chain against the same PR.
 > `triage-pr` re-fetches threads every pass: resolved threads are filtered out, and
-> proposed-defer threads already carry the non-resolving `defer-pending` marker (A-679),
+> proposed follow-up threads already carry the non-resolving `follow-up-pending` marker (A-679),
 > so they arrive as `deferredThreads`, not fresh findings. The envelope therefore
 > re-prompts only for genuinely new bot findings.
 
@@ -631,11 +633,11 @@ the linked issues are already In Review before triage begins.
   at green, never promoting the draft. **No effect on send-it's own steps.**
 - `--no-promote` — forwarded verbatim to `triage-pr`: never flip the draft to ready;
   stop at green. send-it also adds this itself when the cold-start gate times out.
-  **No effect on send-it's own steps.** (`--promote` is deliberately *not* forwarded —
+  **No effect on send-it's own steps.** (`--promote` is deliberately _not_ forwarded —
   promotion is already triage-pr's default.)
 - `--auto-apply` — forwarded verbatim to `triage-pr`: skip its Phase B human envelope
   and restore its legacy auto path (impact-gated fix-now; Linear-only gate for
-  defers). **No effect on send-it's own steps.**
+  follow-ups). **No effect on send-it's own steps.**
 - `--ready` — open the PR ready-for-review instead of draft (default is draft).
 - `--worktree=<branch-or-path>` — `cd` into a worktree before running (Step 0).
 
@@ -666,12 +668,12 @@ the linked issues are already In Review before triage begins.
   ready-for-review is the end of its remit; landing it is a human action.
 - **CI gated on non-draft PRs makes the chain a tax.** send-it opens drafts by
   default, so a repo whose workflows carry `if: github.event.pull_request.draft ==
-  false` registers zero checks until the PR is ready — the Step 11 cold-start gate
+false` registers zero checks until the PR is ready — the Step 11 cold-start gate
   then waits its full 3 minutes every run and hands off with `--no-promote` to a
   triage-pr with nothing to do. Use `--ready`, or set `triage: false`, in those repos.
 - **Idempotent:** re-running send-it updates the existing PR title and changelog
   entry; the Linear writeback skips issues already In Review or beyond; the Step 11
-  chain re-enters `triage-pr` against the same PR, whose `defer-pending` markers
+  chain re-enters `triage-pr` against the same PR, whose `follow-up-pending` markers
   (A-679) keep already-dispositioned findings out of the envelope.
 - **send-it does not bump versions or write any `CHANGELOG.md`.** release-please
   ranks Conventional Commits on trunk after merge (merge-commit history for feature

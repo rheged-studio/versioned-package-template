@@ -29,22 +29,22 @@ issue-ID detection and Linear links in a foreign repo). Run the
 your organisation. The remaining keys are structural and keep generic, overridable
 defaults.
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `issueKeys` | Team-key prefixes used to recognise issue IDs in the branch and body. | **required** |
-| `linearWorkspaceSlug` | Linear workspace slug for issue links (`https://linear.app/<slug>/issue/<id>`). | **required** |
-| `baseBranch` | Trunk the branch diff is taken against (`origin/<baseBranch>`); `BASE_REF` env overrides per-run. | `"main"` |
-| `changelogDir` | Directory the dated entries live in (scanned and validated). | `"changelog"` |
-| `affectedPackages` | Monorepo gate. When `true`, emit and maintain `affected_packages` from the branch diff; single-package repos leave it `false`, which omits the field and makes `set-affected-packages.mjs` a no-op. | `false` |
-| `packageRoots` | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` for `affected_packages`. | `["apps", "packages", "services"]` |
-| `fallbackPackage` | Package name for changed paths matching no `packageRoots` prefix. | `"infrastructure"` |
+| Key                   | Meaning                                                                                                                                                                                             | Default                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `issueKeys`           | Team-key prefixes used to recognise issue IDs in the branch and body.                                                                                                                               | **required**                       |
+| `linearWorkspaceSlug` | Linear workspace slug for issue links (`https://linear.app/<slug>/issue/<id>`).                                                                                                                     | **required**                       |
+| `baseBranch`          | Trunk the branch diff is taken against (`origin/<baseBranch>`); `BASE_REF` env overrides per-run.                                                                                                   | `"main"`                           |
+| `changelogDir`        | Directory the dated entries live in (scanned and validated).                                                                                                                                        | `"changelog"`                      |
+| `affectedPackages`    | Monorepo gate. When `true`, emit and maintain `affected_packages` from the branch diff; single-package repos leave it `false`, which omits the field and makes `set-affected-packages.mjs` a no-op. | `false`                            |
+| `packageRoots`        | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` for `affected_packages`.                                                                                                               | `["apps", "packages", "services"]` |
+| `fallbackPackage`     | Package name for changed paths matching no `packageRoots` prefix.                                                                                                                                   | `"infrastructure"`                 |
 
 ## Requirements
 
 - **Node.js ≥22** for the bundled scripts. They use **only Node built-ins** — no
   `npm install`, no build step.
 - The **`git` CLI** for branch and diff analysis.
-- **pnpm** *only* for the optional `preflight-changelog-ci.mjs` step (Node/lockfile
+- **pnpm** _only_ for the optional `preflight-changelog-ci.mjs` step (Node/lockfile
   CI-parity). Skip that step if your repo doesn't use pnpm.
 
 ## What it does

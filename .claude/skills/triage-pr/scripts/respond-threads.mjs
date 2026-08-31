@@ -29,8 +29,9 @@
 //   node respond-threads.mjs --self-test
 //   node respond-threads.mjs thread --thread <PRRT_id> --decision accept --sha <sha>
 //   node respond-threads.mjs thread --thread <PRRT_id> --decision decline --reason "<why>"
-//   node respond-threads.mjs thread --thread <PRRT_id> --decision defer --reference <ticket>
-//   node respond-threads.mjs thread --thread <PRRT_id> --decision defer-pending
+//   node respond-threads.mjs thread --thread <PRRT_id> --decision follow-up --reference <ticket>
+//   node respond-threads.mjs thread --thread <PRRT_id> --decision follow-up-pending
+//   (legacy aliases defer / defer-pending still accepted)
 //   node respond-threads.mjs thread --thread <PRRT_id> --decision accept --sha <sha> --reply-on-accept false
 //   node respond-threads.mjs summary --pr <n> [--repo owner/name] --findings '<json>'
 //   …add --dry-run to any mutating subcommand to print the plan without writing.
@@ -42,21 +43,53 @@ import { readFileSync, realpathSync } from "node:fs";
 // so a thread reply is never mistaken for the issue-level summary comment.
 export const THREAD_MARKER = "<!-- triage-pr:thread-ack -->";
 export const SUMMARY_MARKER = "<!-- triage-pr:summary-ack -->";
-// Non-resolving marker written the moment a follow-up is deferred (Step 8), before
+// Non-resolving marker written the moment a follow-up is filed (Step 8), before
 // its ticket exists (Step 10). Distinct from THREAD_MARKER on purpose: it must NOT
-// mark the thread "handled" — Step 10 still posts the real defer reply and resolves.
-// It durably records the defer so review-threads.mjs buckets the thread as
+// mark the thread "handled" — Step 10 still posts the real follow-up reply and resolves.
+// It durably records the pending follow-up so review-threads.mjs buckets the thread as
 // `deferredThreads` (not re-emitted as a fresh finding) and a fresh invocation can
-// rediscover it. Keep this string in sync with review-threads.mjs.
+// rediscover it. Keep these strings in sync with review-threads.mjs.
+export const FOLLOW_UP_PENDING_MARKER = "<!-- triage-pr:follow-up-pending -->";
+/**
+ * Legacy marker — still recognised on read; new replies use
+ * {@link FOLLOW_UP_PENDING_MARKER}.
+ * @deprecated
+ */
 export const DEFER_PENDING_MARKER = "<!-- triage-pr:defer-pending -->";
+export const FOLLOW_UP_PENDING_MARKERS = [
+  FOLLOW_UP_PENDING_MARKER,
+  DEFER_PENDING_MARKER,
+];
 
-const DECISIONS = new Set([
+const CANONICAL_DECISIONS = new Set([
   "accept",
   "decline",
-  "defer",
-  "defer-pending",
+  "follow-up",
+  "follow-up-pending",
   "outdated",
 ]);
+
+/**
+ * CLI aliases → canonical decision names (A-1542).
+ */
+const DECISION_ALIASES = {
+  defer: "follow-up",
+  "defer-pending": "follow-up-pending",
+};
+
+const DECISIONS = new Set([
+  ...CANONICAL_DECISIONS,
+  ...Object.keys(DECISION_ALIASES),
+]);
+
+/**
+ * Map a CLI `--decision` value to its canonical name (`defer` → `follow-up`, etc.).
+ */
+export function normalizeDecision(decision) {
+  const value = String(decision ?? "").trim();
+  return DECISION_ALIASES[value] ?? value;
+}
+
 const STATUSES = new Set(["accepted", "declined", "out-of-scope"]);
 
 // Mirrors review-threads.mjs: GraphQL returns bot logins WITHOUT the `[bot]`
@@ -82,8 +115,8 @@ export function isReviewBotAuthor(login, bots = DEFAULT_BOTS) {
 /**
  * True when a comment body carries a marker. With no `marker` argument, checks
  * only the resolving acknowledgement markers (`THREAD_MARKER` or `SUMMARY_MARKER`)
- * — NOT the non-resolving `DEFER_PENDING_MARKER`, since a defer-pending reply does
- * not mean the thread is handled. Pass `marker` explicitly to check for that one.
+ * — NOT the non-resolving follow-up-pending markers, since a follow-up-pending reply
+ * does not mean the thread is handled. Pass `marker` explicitly to check for that one.
  */
 export function hasMarker(body, marker) {
   const text = String(body ?? "");
@@ -95,13 +128,25 @@ export function hasMarker(body, marker) {
 }
 
 /**
- * Build the thread-reply body for an accept, decline, or defer, carrying the
+ * True when a comment body carries any follow-up-pending marker (new or legacy).
+ */
+export function hasFollowUpPendingMarker(body) {
+  const text = String(body ?? "");
+  return FOLLOW_UP_PENDING_MARKERS.some((pendingMarker) =>
+    text.includes(pendingMarker),
+  );
+}
+
+/**
+ * Build the thread-reply body for an accept, decline, or follow-up, carrying the
  * marker. Accepts reference the fixing commit; declines carry the technical
- * reasoning; defers reference the follow-up ticket they were tracked as. No
+ * reasoning; follow-ups reference the Linear issue they were filed as. No
  * sycophancy — the wording states facts only.
  */
 export function buildReplyBody({ decision, reason, reference, sha }) {
-  if (decision === "accept") {
+  const canonical = normalizeDecision(decision);
+
+  if (canonical === "accept") {
     const trimmed = String(sha ?? "").trim();
     if (!trimmed) {
       throw new Error("accept reply requires a commit sha");
@@ -110,7 +155,7 @@ export function buildReplyBody({ decision, reason, reference, sha }) {
     return `Addressed in ${trimmed}.\n\n${THREAD_MARKER}`;
   }
 
-  if (decision === "decline") {
+  if (canonical === "decline") {
     const trimmed = String(reason ?? "").trim();
     if (!trimmed) {
       throw new Error("decline reply requires technical reasoning");
@@ -119,20 +164,20 @@ export function buildReplyBody({ decision, reason, reference, sha }) {
     return `${trimmed}\n\n${THREAD_MARKER}`;
   }
 
-  if (decision === "defer") {
+  if (canonical === "follow-up") {
     const trimmed = String(reference ?? "").trim();
     if (!trimmed) {
-      throw new Error("defer reply requires a follow-up ticket reference");
+      throw new Error("follow-up reply requires a follow-up ticket reference");
     }
 
-    return `Deferred for this PR; tracked as ${trimmed} for follow-up.\n\n${THREAD_MARKER}`;
+    return `Filed as follow-up issue ${trimmed}; not fixing on this PR.\n\n${THREAD_MARKER}`;
   }
 
-  if (decision === "defer-pending") {
+  if (canonical === "follow-up-pending") {
     // Recorded at Step 8, before a ticket exists — so no reference. Carries the
-    // NON-resolving DEFER_PENDING_MARKER, never THREAD_MARKER, so Step 10 still
-    // posts the final defer reply and resolves.
-    return `Noted as deferred for this PR; a follow-up issue may be filed and linked here after human approval.\n\n${DEFER_PENDING_MARKER}`;
+    // NON-resolving FOLLOW_UP_PENDING_MARKER, never THREAD_MARKER, so Step 10 still
+    // posts the final follow-up reply and resolves.
+    return `Noted for follow-up on this PR; a Linear issue may be filed and linked here after human approval.\n\n${FOLLOW_UP_PENDING_MARKER}`;
   }
 
   throw new Error(`no reply body for decision: ${decision}`);
@@ -142,22 +187,23 @@ export function buildReplyBody({ decision, reason, reference, sha }) {
  * Decide, for each thread decision, what action to take — honouring the
  * human-thread guardrail, the idempotency marker, and `replyOnAccept`.
  *
- * Each decision: { threadId, decision: accept|decline|outdated|defer|defer-pending,
+ * Each decision: { threadId, decision: accept|decline|outdated|follow-up|follow-up-pending,
  * sha?, reason?, reference?, isHuman?, comments? }. `comments` is the thread's
  * existing comments (as returned by review-threads.mjs) — used to detect our own
- * prior reply.
+ * prior reply. Legacy aliases `defer` / `defer-pending` are normalised.
  *
  * Returns one action per decision, kind ∈ { reply-resolve, resolve-only, reply-only,
- * skip }. `reply-only` (the `defer-pending` case) posts a reply WITHOUT resolving, so
- * the deferred thread is durably marked yet stays open until Step 10. A `skip`
+ * skip }. `reply-only` (the `follow-up-pending` case) posts a reply WITHOUT resolving, so
+ * the follow-up-pending thread is durably marked yet stays open until Step 10. A `skip`
  * carries `why` ∈ { human, already-handled, already-pending }. Never emits a mutating
  * action for a human thread.
  */
 export function planThreadResponses(decisions, { replyOnAccept = true } = {}) {
   return (decisions ?? []).map((entry) => {
-    const { decision, threadId } = entry;
-    if (!DECISIONS.has(decision)) {
-      throw new Error(`unknown decision for ${threadId}: ${decision}`);
+    const { threadId } = entry;
+    const decision = normalizeDecision(entry.decision);
+    if (!CANONICAL_DECISIONS.has(decision)) {
+      throw new Error(`unknown decision for ${threadId}: ${entry.decision}`);
     }
 
     if (entry.isHuman) {
@@ -171,12 +217,12 @@ export function planThreadResponses(decisions, { replyOnAccept = true } = {}) {
       return { kind: "skip", threadId, why: "already-handled" };
     }
 
-    if (decision === "defer-pending") {
+    if (decision === "follow-up-pending") {
       // Recording a follow-up candidate (Step 8): reply with the non-resolving
-      // marker so the defer is durable, but leave the thread open for Step 10.
+      // marker so the follow-up is durable, but leave the thread open for Step 10.
       // Idempotent against its own marker so a re-run doesn't double-post.
       const alreadyPending = (entry.comments ?? []).some((comment) =>
-        hasMarker(comment.body, DEFER_PENDING_MARKER),
+        hasFollowUpPendingMarker(comment.body),
       );
       if (alreadyPending) {
         return { kind: "skip", threadId, why: "already-pending" };
@@ -202,8 +248,8 @@ export function planThreadResponses(decisions, { replyOnAccept = true } = {}) {
       };
     }
 
-    if (decision === "defer") {
-      // Out-of-scope finding tracked as a follow-up issue: always reply with the
+    if (decision === "follow-up") {
+      // Out-of-scope finding filed as a follow-up issue: always reply with the
       // ticket reference (replyOnAccept is accept-specific and never gates this),
       // then resolve.
       return {
@@ -252,7 +298,7 @@ function renderReference(status, reference) {
 const STATUS_LABELS = {
   accepted: "Accepted",
   declined: "Declined",
-  "out-of-scope": "Deferred",
+  "out-of-scope": "Follow-up",
 };
 
 /**
@@ -529,9 +575,11 @@ function runThread(options) {
 
   if (!DECISIONS.has(decision)) {
     throw new Error(
-      "thread requires --decision accept|decline|outdated|defer|defer-pending",
+      "thread requires --decision accept|decline|outdated|follow-up|follow-up-pending",
     );
   }
+
+  const canonicalDecision = normalizeDecision(decision);
 
   const replyOnAccept = parseReplyOnAccept(options.replyOnAccept);
   const bots = options.bots
@@ -554,7 +602,7 @@ function runThread(options) {
     [
       {
         comments,
-        decision,
+        decision: canonicalDecision,
         isHuman,
         reason: options.reason,
         reference: options.reference,
@@ -571,7 +619,7 @@ function runThread(options) {
   }
 
   // Two outcomes mutate nothing and leave the thread OPEN: a human thread (never
-  // auto-actioned) and an already-pending defer (the marker is already there).
+  // auto-actioned) and an already-pending follow-up (the marker is already there).
   if (
     action.kind === "skip" &&
     (action.why === "human" || action.why === "already-pending")
@@ -580,12 +628,12 @@ function runThread(options) {
     return;
   }
 
-  // reply-only (defer-pending) and reply-resolve both post a reply.
+  // reply-only (follow-up-pending) and reply-resolve both post a reply.
   if (action.kind === "reply-only" || action.kind === "reply-resolve") {
     addReviewThreadReply(threadId, action.body);
   }
 
-  // Everything resolves EXCEPT reply-only, which defers resolution to Step 10.
+  // Everything resolves EXCEPT reply-only, which leaves resolution to Step 10.
   // An already-handled skip still resolves (finishing a half-completed prior run).
   if (action.kind !== "reply-only") {
     resolveReviewThread(threadId);
@@ -647,23 +695,28 @@ function selfTest() {
       threadId: "T_decline",
     },
     { decision: "outdated", threadId: "T_outdated" },
-    { decision: "defer", reference: "A-601", threadId: "T_defer" },
-    { decision: "defer-pending", threadId: "T_defer_pending" },
+    { decision: "follow-up", reference: "A-601", threadId: "T_follow_up" },
+    { decision: "follow-up-pending", threadId: "T_follow_up_pending" },
     {
       comments: [
         {
           author: "me",
-          body: `Noted as deferred.\n\n${DEFER_PENDING_MARKER}`,
+          body: `Noted for follow-up.\n\n${DEFER_PENDING_MARKER}`,
         },
       ],
-      decision: "defer-pending",
-      threadId: "T_defer_pending_again",
+      decision: "follow-up-pending",
+      threadId: "T_follow_up_pending_again",
     },
     {
       decision: "defer",
+      reference: "A-602",
+      threadId: "T_defer_alias",
+    },
+    {
+      decision: "follow-up",
       isHuman: true,
       reference: "A-602",
-      threadId: "T_defer_human",
+      threadId: "T_follow_up_human",
     },
     { decision: "accept", isHuman: true, sha: "deadbee", threadId: "T_human" },
     {
@@ -724,39 +777,45 @@ function selfTest() {
         byId.T_outdated.kind === "resolve-only" && !("body" in byId.T_outdated),
     },
     {
-      name: "deferred thread → reply-resolve referencing the ticket",
+      name: "follow-up thread → reply-resolve referencing the ticket",
       ok:
-        byId.T_defer.kind === "reply-resolve" &&
-        byId.T_defer.body.includes("A-601") &&
-        byId.T_defer.body.includes("for follow-up") &&
-        byId.T_defer.body.includes(THREAD_MARKER),
+        byId.T_follow_up.kind === "reply-resolve" &&
+        byId.T_follow_up.body.includes("A-601") &&
+        byId.T_follow_up.body.includes("follow-up issue") &&
+        byId.T_follow_up.body.includes(THREAD_MARKER),
     },
     {
-      name: "human thread is never auto-actioned (defer)",
+      name: "defer alias → same as follow-up",
       ok:
-        byId.T_defer_human.kind === "skip" &&
-        byId.T_defer_human.why === "human",
+        byId.T_defer_alias.kind === "reply-resolve" &&
+        byId.T_defer_alias.body.includes("A-602"),
     },
     {
-      name: "defer-pending → reply-only, non-resolving marker, no thread-ack",
+      name: "human thread is never auto-actioned (follow-up)",
       ok:
-        byId.T_defer_pending.kind === "reply-only" &&
-        byId.T_defer_pending.body.includes(DEFER_PENDING_MARKER) &&
-        !byId.T_defer_pending.body.includes(THREAD_MARKER),
+        byId.T_follow_up_human.kind === "skip" &&
+        byId.T_follow_up_human.why === "human",
     },
     {
-      name: "defer-pending is idempotent — already-pending thread is skipped",
+      name: "follow-up-pending → reply-only, non-resolving marker, no thread-ack",
       ok:
-        byId.T_defer_pending_again.kind === "skip" &&
-        byId.T_defer_pending_again.why === "already-pending",
+        byId.T_follow_up_pending.kind === "reply-only" &&
+        byId.T_follow_up_pending.body.includes(FOLLOW_UP_PENDING_MARKER) &&
+        !byId.T_follow_up_pending.body.includes(THREAD_MARKER),
     },
     {
-      name: "a fully-handled thread is skipped even for defer-pending",
+      name: "follow-up-pending is idempotent — already-pending thread is skipped",
+      ok:
+        byId.T_follow_up_pending_again.kind === "skip" &&
+        byId.T_follow_up_pending_again.why === "already-pending",
+    },
+    {
+      name: "a fully-handled thread is skipped even for follow-up-pending",
       ok: (() => {
         const [action] = planThreadResponses([
           {
             comments: [{ author: "me", body: `x\n\n${THREAD_MARKER}` }],
-            decision: "defer-pending",
+            decision: "follow-up-pending",
             threadId: "T_dp_handled",
           },
         ]);
@@ -798,10 +857,10 @@ function selfTest() {
       })(),
     },
     {
-      name: "defer reply without a reference throws",
+      name: "follow-up reply without a reference throws",
       ok: (() => {
         try {
-          buildReplyBody({ decision: "defer", reference: "  " });
+          buildReplyBody({ decision: "follow-up", reference: "  " });
           return false;
         } catch {
           return true;
@@ -815,7 +874,7 @@ function selfTest() {
           "| Read missing from allowed-tools | Accepted | `abc1234` |",
         ) &&
         summary.includes("Declined") &&
-        summary.includes("Deferred") &&
+        summary.includes("Follow-up") &&
         summary.includes(SUMMARY_MARKER),
     },
     {
@@ -955,15 +1014,16 @@ function selfTest() {
 const USAGE = `respond-threads — reply to and resolve AI review threads on a PR
 
 Usage:
-  respond-threads thread  --thread <PRRT_id> --decision <accept|decline|outdated|defer|defer-pending> [--sha <sha>] [--reason <text>] [--reference <ticket>] [--reply-on-accept <true|false>] [--bots <csv>] [--dry-run]
+  respond-threads thread  --thread <PRRT_id> --decision <accept|decline|outdated|follow-up|follow-up-pending> [--sha <sha>] [--reason <text>] [--reference <ticket>] [--reply-on-accept <true|false>] [--bots <csv>] [--dry-run]
   respond-threads summary --pr <number> --findings <json> [--repo <owner/name>] [--dry-run]
   respond-threads --self-test
   respond-threads --help
 
 Subcommands:
   thread     Reply to and resolve a single review thread by its decision
-             (defer replies with the follow-up ticket from --reference, then resolves;
-             defer-pending replies with a non-resolving marker and leaves it open).
+             (follow-up replies with the Linear issue from --reference, then resolves;
+             follow-up-pending replies with a non-resolving marker and leaves it open).
+             Legacy aliases defer / defer-pending are still accepted.
   summary    Upsert the consolidated issue-level acknowledgement comment.
 
 Other:
