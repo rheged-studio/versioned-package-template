@@ -19,7 +19,7 @@ npx skills add https://github.com/rheged-studio/agent-skills --skill cleanup-rep
 
 This skill ships only [`config.example.json`](config.example.json), a neutral
 template — the per-skill `config.json` is generated on install, not vendored, so
-you never inherit another repo's values. Run the `initialise-skills` skill to
+you never inherit another repo's values. Run the `rheged-skills-setup` skill to
 generate `config.json` from the example with your repo's facts, or copy it to
 `config.json` and fill it in by hand. Set `linearTeamName` and `issueKeys` for
 your organisation, or the Linear lookups will target the wrong team and branch

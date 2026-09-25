@@ -46,8 +46,8 @@ invoked two ways:
 One knob lives in [`config.json`](config.json) beside this skill (a neutral
 [`config.example.json`](config.example.json) ships as a template):
 
-| Key          | Meaning                                                                                                                      | Default  |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Key | Meaning | Default |
+| --- | --- | --- |
 | `baseBranch` | The trunk the branch diff is taken against (`origin/<baseBranch>`), used to compute the merge base for scope classification. | `"main"` |
 
 Throughout this document `<base>` is the `baseBranch` value.
@@ -62,11 +62,11 @@ classification against a **different** base for that run — for instance send-i
 1. `git status --porcelain`. If clean, there is nothing to commit — say so and
    stop.
 2. Inspect the uncommitted files: `git status --porcelain` for the list, `git
-diff` and `git diff --cached` for the hunks.
+   diff` and `git diff --cached` for the hunks.
 3. **Filter for branch relevance.** Decide which uncommitted files are in scope:
    - Compute the merge base: `git merge-base HEAD origin/<base>`.
    - Files the branch has already touched **directly**: `git diff --name-only
-<merge-base>...HEAD`.
+     <merge-base>...HEAD`.
    - **In scope** by default: an uncommitted file whose path is in that
      branch-touched list.
    - **Out of scope** (uncertain): everything else once the branch has its own
@@ -104,9 +104,9 @@ diff` and `git diff --cached` for the hunks.
    `git add -A`) and `git commit`. Stage only the files named in the plan;
    out-of-scope files stay in the working tree, untouched. Pass one `-m` per block
    to add a body or footer beyond the subject — `git commit -m "<subject>" -m
-"<body>"`, and for a breaking change `git commit -m "feat(api)!: <subject>" -m
-"BREAKING CHANGE: <what changed and the migration>"` (or `git commit -F
-<message-file>` for a longer body). A bare `git commit -m "<subject>"` is fine
+   "<body>"`, and for a breaking change `git commit -m "feat(api)!: <subject>" -m
+   "BREAKING CHANGE: <what changed and the migration>"` (or `git commit -F
+   <message-file>` for a longer body). A bare `git commit -m "<subject>"` is fine
    when no body is needed.
 
 If a pre-commit hook reformats files, the commit still succeeds with the formatted

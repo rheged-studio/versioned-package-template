@@ -23,7 +23,7 @@ export const SHARED_SKILLS = Object.freeze([
   "changelog",
   "cleanup-repo",
   "commit",
-  "initialise-skills",
+  "rheged-skills-setup",
   "linear-sync",
   "preflight",
   "release-status",

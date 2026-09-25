@@ -10,14 +10,35 @@ the community `receiving-code-review` and `verification-before-completion` skill
 
 When `humanEnvelope` is `true` (the default), run READ → UNDERSTAND → VERIFY →
 EVALUATE for every finding and produce a disposition plan — then **halt** for one
-same-session batch `[y/N]` before IMPLEMENT / Linear create / resolving replies.
-Proposed follow-up threads are marked `follow-up-pending` (non-resolving) when the
-plan is presented so a restart does not re-emit them while the human decides. The
-envelope covers accept, decline, and create a follow-up issue in one gate, including
-findings from later AI re-reviews on the same PR. `--auto-apply` / `humanEnvelope: false`
-skips the envelope and restores legacy auto Phase B (impact-gated fix-now; mark
-`follow-up-pending` as soon as a follow-up is classified; Linear-only gate for
-follow-ups). Legacy CLI aliases `defer` / `defer-pending` still work.
+same-session batch **Yes / No / Other** approval (**default yes**) before IMPLEMENT /
+Linear create / resolving replies.
+
+### Presentation (A-1647)
+
+1. **Detail block** (chat, above the gate) — Option A, grouped by disposition:
+   full `### [accept|follow-up|gated] …` cards; routine `[decline]` / `[outdated]`
+   compressed under one heading unless the reason is non-obvious. Soft-cap keeps
+   high-signal items readable. Include a GitHub **thread or summary-comment
+   permalink** when the fetcher provides `url` on the thread (or summary comment).
+2. **Structured Questions UI** when available:
+   - **Cursor:** `AskQuestion` with **Yes** / **No** / **Other (type overrides)**.
+   - **Claude Code:** `AskUserQuestion` (`header` e.g. `Apply plan`) with
+     **Yes (Recommended)** / **No** (host usually appends **Other** for free text).
+3. **Fallback:** prose `Apply this plan? [Y/n]` plus typed overrides when neither
+   tool exists.
+
+**No** / Skip applies nothing. **Other** accepts freeform overrides (`yes except
+decline #1…`); one clarify turn if ambiguous. The same contract applies to the
+slow-bot micro-gate (Proceed / Wait / Abort), to Step 12 **re-envelopes**, and when
+`/send-it` chains into triage. Proposed follow-up threads are marked
+`follow-up-pending` (non-resolving) when the plan is presented so a restart does
+not re-emit them while the human decides.
+
+`--auto-apply` / `humanEnvelope: false` skips the envelope and restores legacy auto
+Phase B (impact-gated fix-now; mark `follow-up-pending` as soon as a follow-up is
+classified; Linear-only gate for follow-ups — structured Questions for that gate
+are tracked separately under A-1654). Legacy CLI aliases `defer` / `defer-pending`
+still work. Fleet rollout of this Questions pattern to other skills: A-1655.
 
 ## Receiving review feedback — the six steps
 
@@ -58,7 +79,6 @@ regression.
 
    The reply is the durable, per-finding audit trail reviewers and humans skimming
    the PR rely on; a silently-resolved accept loses it.
-
 6. **IMPLEMENT.** Apply accepted findings **one at a time**, verifying each before
    the next — only after envelope approval (or under auto-apply). Batching changes
    hides which one broke something.
@@ -260,11 +280,11 @@ implies success without fresh verification breaks this rule.
 
 Proving commands by claim:
 
-| Claim          | Proof                                                             |
-| -------------- | ----------------------------------------------------------------- |
-| Lint clean     | the lint command's output showing zero errors                     |
-| Tests pass     | the test command's output showing zero failures                   |
-| Build succeeds | the build command exiting `0`                                     |
+| Claim | Proof |
+| --- | --- |
+| Lint clean | the lint command's output showing zero errors |
+| Tests pass | the test command's output showing zero failures |
+| Build succeeds | the build command exiting `0` |
 | Manifest valid | `npx --yes skills-ref@0.1.5 validate ./skills/<name>` exiting `0` |
-| CI green       | `gh pr checks <pr>` showing every required check passed           |
-| Bug fixed      | the original failing symptom now passing                          |
+| CI green | `gh pr checks <pr>` showing every required check passed |
+| Bug fixed | the original failing symptom now passing |

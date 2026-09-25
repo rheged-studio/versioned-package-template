@@ -37,13 +37,13 @@ Five knobs live in [`config.json`](config.json) beside this file. Read it at the
 start of a run and use its values throughout. Edit your copied `config.json` to
 match the consuming repo:
 
-| Key                      | Meaning                                                                                                                                                                                                                      | Default           |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `linearTeamName`         | Linear team **name** used to resolve the live `Done` state. Use the name, not the key — the key is renamed over time but the name is stable.                                                                                 | `"Rheged Studio"` |
-| `issueKeys`              | Team-key prefixes that may appear in branch names. The issue-ID regex is built from these.                                                                                                                                   | `["A"]`           |
-| `mainBranch`             | The trunk a branch must be merged into to count as merged — both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk is `master`, `develop`, or similar.                                                 | `"main"`          |
-| `protectedBranches`      | Branches that are **never** deleted, locally or remotely.                                                                                                                                                                    | `["main"]`        |
-| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt — `"yes"` pre-fills yes, `"no"` pre-fills no. The interactive gate always stays; this never auto-applies. Absent or unrecognised → treated as `"no"`. | `"no"`            |
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `linearTeamName` | Linear team **name** used to resolve the live `Done` state. Use the name, not the key — the key is renamed over time but the name is stable. | `"Rheged Studio"` |
+| `issueKeys` | Team-key prefixes that may appear in branch names. The issue-ID regex is built from these. | `["A"]` |
+| `mainBranch` | The trunk a branch must be merged into to count as merged — both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk is `master`, `develop`, or similar. | `"main"` |
+| `protectedBranches` | Branches that are **never** deleted, locally or remotely. | `["main"]` |
+| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt — `"yes"` pre-fills yes, `"no"` pre-fills no. The interactive gate always stays; this never auto-applies. Absent or unrecognised → treated as `"no"`. | `"no"` |
 
 Build the issue-ID regex **deterministically**: escape each key's regex
 metacharacters, and when there is more than one key wrap the alternation in
@@ -120,7 +120,7 @@ git worktree list
 - Identify worktrees with uncommitted changes: `git -C <path> status --porcelain`
   non-empty. These are surfaced separately in Step 6 and **never removed
   automatically** — the user handles them manually (`git worktree remove --force
-<path>` once they have moved or discarded the work).
+  <path>` once they have moved or discarded the work).
 - Worktree location is irrelevant to detection; `git worktree list` enumerates
   them wherever they live (e.g. a gitignored `.claude/worktrees/<branch>/`).
 
@@ -260,10 +260,10 @@ Confirm the two passes **separately** — their blast radii and reversibility di
 so the user may accept one and decline the other:
 
 1. **Branch/worktree pass** — ask `Delete these worktrees and branches (local +
-remote)? (yes/no)`. On `no`, skip the worktree/branch/remote deletion (Step
+   remote)? (yes/no)`. On `no`, skip the worktree/branch/remote deletion (Step
    9.1–9.4) and the Linear `Done` writeback (Step 10).
 2. **Filesystem pass** — ask `Remove these empty directories and orphan
-node_modules? (yes/no)`. On `no`, skip the filesystem removal (Step 9.5).
+   node_modules? (yes/no)`. On `no`, skip the filesystem removal (Step 9.5).
 
 Rules:
 
@@ -339,7 +339,7 @@ runs **after** worktree removal so a just-emptied worktree parent (e.g.
 If any Linear issues from Step 4 are not `Done`:
 
 - Ask: `These Linear issues are linked to merged branches but aren't Done. Set
-them to Done? (yes/no)`. Seed the default from `linearWritebackDefault` —
+  them to Done? (yes/no)`. Seed the default from `linearWritebackDefault` —
   `"yes"` pre-fills the prompt with yes, anything else — `"no"`, an absent key,
   or an unrecognised value — pre-fills no. The prompt is always shown and the
   answer always confirmed — the knob only moves the default, it never
