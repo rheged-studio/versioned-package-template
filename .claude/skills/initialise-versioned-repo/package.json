@@ -2,7 +2,7 @@
   "name": "@rheged-studio/skill-initialise-versioned-repo",
   "version": "0.1.1",
   "private": true,
-  "description": "Agent skill: one-shot, idempotent post-generation setup for a repo freshly created from versioned-package-template (a non-npm deploy target) — reset changelog/, re-seed the release-please manifest, rewrite package identity + repo-config, pull shared skills via npx skills add --copy (A-776), clear the template-seed skill-config gitignore (A-812), wrap initialise-skills, and apply the three non-copied GitHub rulesets (GO/NO GO with the road-runner-bot bypass, Trunk changelog bypass, changelog write-back path guard).",
+  "description": "Agent skill: one-shot, idempotent post-generation setup for a repo freshly created from versioned-package-template (a non-npm deploy target) — reset changelog/, re-seed the release-please manifest, rewrite package identity + repo-config, pull shared skills via npx skills add --copy (A-776), clear the template-seed skill-config gitignore (A-812), wrap rheged-skills-setup, and apply the three non-copied GitHub rulesets (GO/NO GO with the road-runner-bot bypass, Trunk changelog bypass, changelog write-back path guard).",
   "keywords": [
     "agent-skill",
     "claude-code",

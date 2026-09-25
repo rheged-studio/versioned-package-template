@@ -16,7 +16,7 @@ scaffold time (`npx skills add … --copy`, A-776) and never overwrites itself.
 ## Use
 
 Run it through your agent (it drives the dry-run → confirm → write flow across the
-file edits + skills pull, the wrapped `initialise-skills` run, and the GitHub
+file edits + skills pull, the wrapped `rheged-skills-setup` run, and the GitHub
 rulesets), or invoke the bundled script directly:
 
 ```bash
@@ -50,7 +50,7 @@ clears the required check), ensures the `Trunk` road-runner-bot changelog bypass
 push ruleset. There is **no** npm-release environment, OIDC bootstrap, or
 enable-Release step — a deploy target publishes nothing.
 
-**Wrapped:** runs the `initialise-skills` skill **after** the skills pull and
+**Wrapped:** runs the `rheged-skills-setup` skill **after** the skills pull and
 gitignore strip to generate each skill's `config.json` (then commit those files).
 
 **Reported, not automated:** registering the repo in the release-orchestrator matrix

@@ -5,7 +5,7 @@
 // `.agents/skills/*/config.json` so "Use this template" never copies a local
 // resolved config into a new repo. That rule is correct for the *template seed*
 // but wrong for a *consumer*: agent-skills expects the resolved per-skill
-// config.json to be committed after initialise-skills runs. Leaving the ignore
+// config.json to be committed after rheged-skills-setup runs. Leaving the ignore
 // in place means CI/fresh clones have no runnable config.
 //
 // This module removes those two patterns (and the A-640 comment block that
@@ -51,6 +51,7 @@ export function isSkillConfigIgnoreComment(trimmed) {
     lower.includes("template-seed") ||
     (lower.includes("config.json") &&
       (lower.includes("initialise-skills") ||
+        lower.includes("rheged-skills-setup") ||
         lower.includes("per-skill agent-skills") ||
         lower.includes("not committed") ||
         lower.includes("resolved skill")))
