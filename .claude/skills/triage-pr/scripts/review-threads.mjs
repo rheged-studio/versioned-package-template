@@ -8,7 +8,8 @@
 //
 //   - unresolvedThreads : inline review threads with `isResolved == false`,
 //                         raised by a configured review bot. Each is trimmed to
-//                         { threadId, path, line, isOutdated, author, comments }.
+//                         { threadId, path, line, isOutdated, author, url, comments }.
+//                         `url` is the first review-comment permalink when present.
 //   - deferredThreads   : the same, for bot threads already carrying our
 //                         non-resolving defer marker (recorded at SKILL.md Step 8
 //                         but not yet ticketed/resolved at Step 10). Bucketed apart
@@ -83,13 +84,29 @@ function makeBotMatcher(bots) {
 }
 
 /**
- * Reduce raw GraphQL comment nodes to the minimal `{ author, body }`.
+ * Reduce raw GraphQL comment nodes to the minimal `{ author, body }` (no urls —
+ * the thread-level `url` carries the permalink).
  */
 function trimComments(commentNodes) {
   return (commentNodes ?? []).map((commentNode) => ({
     author: commentNode.author?.login ?? "unknown",
     body: commentNode.body ?? "",
   }));
+}
+
+/**
+ * First non-empty comment `url` from a raw thread's comment nodes.
+ * @param {{comments?: {nodes?: Array<{url?: string|null}>}}|undefined} node
+ * @returns {string|null}
+ */
+function firstCommentUrl(node) {
+  for (const commentNode of node?.comments?.nodes ?? []) {
+    if (commentNode?.url) {
+      return commentNode.url;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -104,6 +121,7 @@ function shapeThread(node) {
     line: node.line ?? node.originalLine ?? null,
     path: node.path ?? null,
     threadId: node.id,
+    url: firstCommentUrl(node),
   };
 }
 
@@ -171,11 +189,11 @@ export function hasStickyMarker(body) {
  * is deliberate and harmless: the two surfaces carry equivalent summary content, and
  * only one summary per bot is surfaced either way. Blank bodies and Bugbot's "not
  * enabled" upsell are dropped by `isSummaryCandidate`.
- * @param {Array<{author?: {login?: string}, body?: string, id?: string}>} commentNodes
+ * @param {Array<{author?: {login?: string}, body?: string, id?: string, url?: string}>} commentNodes
  * @param {(login: string|undefined) => boolean} isBot
  */
 export function selectSummaryComments(commentNodes, isBot) {
-  /** @type {Map<string, {author: string, body: string, commentId: string}>} */
+  /** @type {Map<string, {author: string, body: string, commentId: string, url: string|null}>} */
   const byAuthor = new Map();
   for (const node of commentNodes ?? []) {
     const login = node.author?.login;
@@ -187,6 +205,7 @@ export function selectSummaryComments(commentNodes, isBot) {
       author: login ?? "unknown",
       body: node.body ?? "",
       commentId: node.id,
+      url: node.url ?? null,
     };
     const existing = byAuthor.get(shaped.author);
     if (!existing || hasStickyMarker(shaped.body)) {
@@ -420,7 +439,7 @@ const THREADS_QUERY = `query($owner:String!,$name:String!,$number:Int!,$cursor:S
         pageInfo{ hasNextPage endCursor }
         nodes{
           id isResolved isOutdated path line originalLine
-          comments(first:100){ nodes{ author{ login } body } }
+          comments(first:100){ nodes{ author{ login } body url } }
         }
       }
     }
@@ -432,7 +451,7 @@ const COMMENTS_QUERY = `query($owner:String!,$name:String!,$number:Int!,$cursor:
     pullRequest(number:$number){
       comments(first:100, after:$cursor){
         pageInfo{ hasNextPage endCursor }
-        nodes{ id author{ login } body }
+        nodes{ id author{ login } body url }
       }
     }
   }
@@ -446,7 +465,7 @@ const REVIEWS_QUERY = `query($owner:String!,$name:String!,$number:Int!,$cursor:S
     pullRequest(number:$number){
       reviews(first:100, after:$cursor){
         pageInfo{ hasNextPage endCursor }
-        nodes{ id author{ login } body state }
+        nodes{ id author{ login } body state url }
       }
     }
   }
@@ -533,7 +552,15 @@ function selfTest() {
   // `claude`, `coderabbitai`), so the fixtures use the bare form.
   const threadNodes = [
     {
-      comments: { nodes: [{ author: { login: "cursor" }, body: "nit: typo" }] },
+      comments: {
+        nodes: [
+          {
+            author: { login: "cursor" },
+            body: "nit: typo",
+            url: "https://github.com/acme/repo/pull/1#discussion_r99",
+          },
+        ],
+      },
       id: "T_bot_unresolved",
       isOutdated: false,
       isResolved: false,
@@ -607,6 +634,7 @@ function selfTest() {
       author: { login: "coderabbitai" },
       body: "## Review summary",
       id: "IC_summary",
+      url: "https://github.com/acme/repo/pull/1#issuecomment-1",
     },
     // Later chatter from the same bot — a command acknowledgement, not a summary.
     {
@@ -726,6 +754,27 @@ function selfTest() {
             Object.keys(comment).toSorted().join(",") === "author,body",
         ),
       ),
+    },
+    {
+      name: "thread url is lifted from the first comment permalink",
+      ok:
+        result.unresolvedThreads.find(
+          (thread) => thread.threadId === "T_bot_unresolved",
+        )?.url === "https://github.com/acme/repo/pull/1#discussion_r99",
+    },
+    {
+      name: "thread without comment url has null url",
+      ok:
+        result.unresolvedThreads.find(
+          (thread) => thread.threadId === "T_bot_outdated",
+        )?.url === null,
+    },
+    {
+      name: "ai summary comment carries url when present",
+      ok:
+        result.aiSummaryComments.find(
+          (comment) => comment.commentId === "IC_summary",
+        )?.url === "https://github.com/acme/repo/pull/1#issuecomment-1",
     },
     {
       name: "thread author is taken from the first comment",

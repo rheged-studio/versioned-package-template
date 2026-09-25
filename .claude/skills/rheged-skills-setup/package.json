@@ -1,0 +1,31 @@
+{
+  "name": "@rheged-studio/skill-rheged-skills-setup",
+  "version": "0.12.0",
+  "private": true,
+  "description": "Rheged skills setup: install the estate skill catalogue, reconcile per-skill config.json from repo facts, and maintain skills.lock.",
+  "keywords": [
+    "agent-skill",
+    "claude-code",
+    "cursor",
+    "config",
+    "bootstrap",
+    "rheged-skills-setup"
+  ],
+  "homepage": "https://github.com/rheged-studio/agent-skills/tree/main/skills/rheged-skills-setup#readme",
+  "bugs": {
+    "url": "https://github.com/rheged-studio/agent-skills/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rheged-studio/agent-skills.git",
+    "directory": "skills/rheged-skills-setup"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Rob Easthope",
+    "url": "https://github.com/RobEasthope"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

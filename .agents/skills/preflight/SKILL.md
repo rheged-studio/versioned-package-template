@@ -56,7 +56,7 @@ They operate on the **consumer repo's root** (run them from the repo root, where
 3. Read `.preflight-summary.json` for the categories run and the violation counts
    (`passed`, `deferred`, `blocking`). Written only on a real run, not under
    `--dry-run`. It is a transient scratch artefact, never committed — consumer
-   repos gitignore it (the `initialise-skills` skill adds the entry when it
+   repos gitignore it (the `rheged-skills-setup` skill adds the entry when it
    reconciles a repo).
 
 The script's exit code drives the loop:

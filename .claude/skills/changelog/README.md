@@ -24,20 +24,20 @@ template — the per-skill `config.json` is generated on install, not vendored.
 missing `config.json`, or either key absent, makes the scripts **fail loudly**
 rather than silently inherit another org's identity (which would emit wrong
 issue-ID detection and Linear links in a foreign repo). Run the
-`initialise-skills` skill to generate `config.json`, or copy
+`rheged-skills-setup` skill to generate `config.json`, or copy
 [`config.example.json`](config.example.json) to `config.json` and set them for
 your organisation. The remaining keys are structural and keep generic, overridable
 defaults.
 
-| Key                   | Meaning                                                                                                                                                                                             | Default                            |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `issueKeys`           | Team-key prefixes used to recognise issue IDs in the branch and body.                                                                                                                               | **required**                       |
-| `linearWorkspaceSlug` | Linear workspace slug for issue links (`https://linear.app/<slug>/issue/<id>`).                                                                                                                     | **required**                       |
-| `baseBranch`          | Trunk the branch diff is taken against (`origin/<baseBranch>`); `BASE_REF` env overrides per-run.                                                                                                   | `"main"`                           |
-| `changelogDir`        | Directory the dated entries live in (scanned and validated).                                                                                                                                        | `"changelog"`                      |
-| `affectedPackages`    | Monorepo gate. When `true`, emit and maintain `affected_packages` from the branch diff; single-package repos leave it `false`, which omits the field and makes `set-affected-packages.mjs` a no-op. | `false`                            |
-| `packageRoots`        | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` for `affected_packages`.                                                                                                               | `["apps", "packages", "services"]` |
-| `fallbackPackage`     | Package name for changed paths matching no `packageRoots` prefix.                                                                                                                                   | `"infrastructure"`                 |
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `issueKeys` | Team-key prefixes used to recognise issue IDs in the branch and body. | **required** |
+| `linearWorkspaceSlug` | Linear workspace slug for issue links (`https://linear.app/<slug>/issue/<id>`). | **required** |
+| `baseBranch` | Trunk the branch diff is taken against (`origin/<baseBranch>`); `BASE_REF` env overrides per-run. | `"main"` |
+| `changelogDir` | Directory the dated entries live in (scanned and validated). | `"changelog"` |
+| `affectedPackages` | Monorepo gate. When `true`, emit and maintain `affected_packages` from the branch diff; single-package repos leave it `false`, which omits the field and makes `set-affected-packages.mjs` a no-op. | `false` |
+| `packageRoots` | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` for `affected_packages`. | `["apps", "packages", "services"]` |
+| `fallbackPackage` | Package name for changed paths matching no `packageRoots` prefix. | `"infrastructure"` |
 
 ## Requirements
 

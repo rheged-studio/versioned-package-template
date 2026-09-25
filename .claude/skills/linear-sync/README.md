@@ -19,16 +19,16 @@ npx skills add https://github.com/rheged-studio/agent-skills --skill linear-sync
 
 This skill ships only [`config.example.json`](config.example.json), a neutral
 template — the per-skill `config.json` is generated on install, not vendored, so
-you never inherit another repo's values. Run the `initialise-skills` skill to
+you never inherit another repo's values. Run the `rheged-skills-setup` skill to
 generate `config.json` from the example with your repo's facts, or copy it to
 `config.json` and fill it in by hand. Set `linearTeamName` and `issueKeys` for
 your organisation, or the state lookups will target the wrong team and branch
 issue-IDs won't match.
 
-| Key              | Meaning                                                                                                                | Default           |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Key | Meaning | Default |
+| --- | --- | --- |
 | `linearTeamName` | Linear team **name** used to resolve live state IDs. Stable across team-key renames — always resolve by name, not key. | `"Rheged Studio"` |
-| `issueKeys`      | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these.                             | `["A"]`           |
+| `issueKeys` | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these. | `["A"]` |
 
 ## Requirements
 

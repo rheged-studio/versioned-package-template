@@ -1,0 +1,63 @@
+# Detectable config keys
+
+The detector registry is keyed by config-**key name**, not by skill, so one
+detector serves every skill that uses a key. A key found in a skill's
+`config.example.json` with no entry here is reported `needs-manual-input`.
+
+| Key | Used by | Detection source | Fallback / when undetectable |
+| --- | --- | --- | --- |
+| `baseBranch` | changelog, send-it | `git symbolic-ref refs/remotes/origin/HEAD`, stripped of `origin/` | `main` |
+| `issueKeys` | changelog, cleanup-repo, `linear-sync`, triage-pr | Leading `<KEY>-<num>` (uppercased; single-letter keys like `A` accepted) from the **most recently committed** branch — `git for-each-ref --sort=-committerdate` — so a renamed team yields its current key, not the historical union; or supplied facts | `needs-manual-input` when no branches match |
+| `linearTeamName` | cleanup-repo, `linear-sync`, triage-pr | Supplied via stdin `facts` (Linear MCP `list_teams`) | `needs-manual-input` |
+| `linearWorkspaceSlug` | changelog | Supplied via stdin `facts` (Linear MCP) | `needs-manual-input` |
+| `changelog` | send-it | `true` when a `changelog/` directory exists at the repo root; `false` otherwise (no changelog flow). Skill-presence alone does **not** enable it — a repo that vendors the `changelog` skill but keeps no `changelog/` dir stays `false` (A-570) | `true` |
+| `changelogDir` | changelog | Structural default | `changelog` |
+| `packageRoots` | changelog | `pnpm-workspace.yaml` `packages:` globs → top dirs; else root `package.json` `workspaces` field; else existing `apps` / `packages` / `services` directories on disk | Example placeholder `["apps", "packages", "services"]` kept when undetectable; **not** flagged `needs-manual-input` when `affectedPackages` is `false` (A-813) |
+| `fallbackPackage` | changelog | Structural default | `infrastructure` |
+| `affectedPackages` | changelog | `true` when a workspace config is detected (same signal as `packageRoots`); `false` otherwise — so single-package repos omit the redundant `affected_packages` field | `false` |
+| `mainBranch` | cleanup-repo | Same as `baseBranch` (the detected default branch) | `main` |
+| `protectedBranches` | cleanup-repo | Structural default | `["main"]` |
+| `shippablePaths` | send-it | Root `package.json` `files` field (paths npm ships), else detected package roots | `[]` |
+| `shippableManifestKeys` | send-it | Fixed | `["name", "version", "files", "publishConfig"]` |
+| `bundleVersioning` | send-it | Present only when the repo ships multiple skill bundles (a `skills/`-style dir with ≥1 `SKILL.md` subdir) | omitted otherwise |
+| `triage` | send-it | Fixed (chain into `triage-pr` once the PR is open — send-it Step 11). Not keyed off `triage-pr` being vendored: Step 11 soft-skips with a warning when the sibling is absent (A-1151) | `true` |
+| `reviewBots` | triage-pr | Fixed | `["claude", "cursor", "coderabbitai"]` |
+| `maxCiRounds` | triage-pr | Fixed | `5` |
+| `deferNonBlocking` | triage-pr | Fixed (impact gate: defer valid in-scope but non-blocking findings) | `true` |
+| `humanEnvelope` | triage-pr | Fixed (halt Phase B for a disposition approval before applying) | `true` |
+| `reviewIdleMinutes` | triage-pr | Fixed (hybrid review-settle idle window) | `5` |
+| `reviewWaitMaxMinutes` | triage-pr | Fixed (hybrid review-settle hard cap) | `20` |
+| `followUpLabel` | triage-pr | Fixed (opt-in follow-up capture; empty = no label) | `""` |
+| `followUpProject` | triage-pr | Supplied via stdin `facts.followUpProject`; **fallback catch-all** when a follow-up cannot inherit a live project from the PR's Linear issue (A-1541). Required when capture is on (`linearTeamName` set) | `needs-manual-input` when team is set and no fact; `""` when capture is off |
+| `followUpState` | triage-pr | Fixed (opt-in follow-up capture; initial state for created issues) | `"Backlog"` |
+| `workspaces` | preflight | n/a — preflight self-detects | never written |
+
+## Notes and known limitations (v0.1.0)
+
+- **`preflight` is skipped entirely.** It reads an optional root-level
+  `preflight.config.json` and auto-detects base branch + workspaces, so an
+  in-bundle `config.json` would never be read. The skip list lives in
+  `scripts/lib/discover.mjs` (`SELF_CONFIGURING`). A future version could let a
+  skill declare this in its `SKILL.md` metadata instead of hardcoding the name.
+- **`bundleVersioning` is reconciled only if already present.** It isn't in
+  send-it's `config.example.json` (the single-package template), so it is never
+  _added_ by detection — only kept (`unknown-kept`) where a consumer already set
+  it. Multi-bundle consumers add it by hand.
+- **`issueKeys` order does not count as drift.** Detected `["A"]` vs configured `["A"]`
+  compares with set semantics (order-insensitive); the existing order is preserved
+  on write to avoid churn.
+- **`issueKeys` prefers the current key, not the historical union.** Detection reads
+  the prefix of the most recently committed branch, so a repo whose Linear team was
+  renamed (…→ASW→SK→A) yields `["A"]` rather than every prefix on stale branches
+  (A-556). Pass `facts.issueKeys` to override when the heuristic is wrong (e.g. a
+  fresh repo with no keyed branches, or one genuinely using several keys).
+- **Structural defaults can read as a placeholder.** When an existing value equals
+  both the example placeholder and the structural default, the key is `unchanged`
+  (not flagged), because the detector emits that same default confidently.
+- **`packageRoots` is gated by `affectedPackages` (A-813).** On a single-package
+  host the roots detector returns null, but with `affectedPackages: false` the
+  merge reclassifies `packageRoots` from `needs-manual-input` to `unchanged` and
+  leaves the example placeholder in place. That placeholder is unused at runtime
+  (changelog's `set-affected-packages` no-ops when the gate is off) and keeps the
+  "ours equals base → infer" path open if the repo later gains a workspace. See
+  [`monorepo-config.md`](monorepo-config.md) for the single↔monorepo flip.

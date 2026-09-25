@@ -21,9 +21,9 @@ compatibility: >-
   Designed for repositories whose AI review runs only on
   ready-for-review PRs (draft-gated), so Phase A and Phase B do not overlap.
 metadata:
-  version: 0.13.0
+  version: 0.14.0
   author: Rob Easthope
-allowed-tools: Read, Edit, Write, Glob, Grep, Bash(gh:*), Bash(git:*), Bash(node:*), Bash(pnpm:*), Bash(npx:*), mcp__linear-server__save_issue, mcp__linear-server__get_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects, mcp__linear-server__list_milestones, mcp__linear-server__save_milestone
+allowed-tools: AskUserQuestion, Read, Edit, Write, Glob, Grep, Bash(gh:*), Bash(git:*), Bash(node:*), Bash(pnpm:*), Bash(npx:*), mcp__linear-server__save_issue, mcp__linear-server__get_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects, mcp__linear-server__list_milestones, mcp__linear-server__save_milestone
 ---
 
 # triage-pr
@@ -39,17 +39,21 @@ phases, choosing the phase from the PR's draft state:
   human — wait for configured reviewers (Claude Code Review, Bugbot, CodeRabbit)
   to post feedback, **verify-then-propose** dispositions for every finding, then
   — when `humanEnvelope` is on (the default) — **halt** for one batch approval
-  before applying accepts, declines, or Linear follow-ups. With `--auto-apply` /
-  `humanEnvelope: false`, restore the legacy auto path (fix high-impact now,
-  file the rest as follow-ups for a Linear-only gate). After apply, re-watch CI and
-  **re-envelope** if new bot findings appear.
+  (structured Questions UI when available — A-1647) before applying accepts,
+  declines, or Linear follow-ups. With `--auto-apply` / `humanEnvelope: false`,
+  restore the legacy auto path (fix high-impact now, file the rest as follow-ups
+  for a Linear-only gate). After apply, re-watch CI and **re-envelope** if new bot
+  findings appear — the same Questions contract as the first envelope.
 
-This skill complements `/send-it` (which **opens or updates** the pull request) and,
-since send-it 0.8.0, is **invoked** by it as its final step (A-1151): send-it opens or
-updates the PR, waits
-for at least one check to register, then hands off here — forwarding `--ci-only`,
-`--no-promote`, and `--auto-apply` verbatim. Running `/triage-pr` directly stays fully
-supported for mid-flight re-runs.
+Since send-it 0.8.0, `/send-it` **opens or updates** the pull request and then
+**invokes this skill as its final step** (Step 11, A-1151): it waits for at least
+one check to register, then hands off here — forwarding `--dry-run`, `--ci-only`,
+`--no-promote`, and `--auto-apply` verbatim. A default `/send-it` run is incomplete
+until that hand-off (A-1645). A send-it chain that reaches Phase B ends on **this**
+skill's envelope (same structured Questions UX — A-1647). Running `/triage-pr`
+directly stays fully supported for mid-flight re-entry when send-it already opened
+the PR, or when send-it was deliberately skipped — it is not the normal end of a
+send-it run.
 
 The draft→ready
 flip is governed by a single control — `promoteOnGreen` in [`config.json`](config.json)
@@ -73,16 +77,16 @@ match the consuming repo's review bots and (optionally) its Linear workspace.
 
 The first eight govern the **CI + review** loop:
 
-| Key                    | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default                                |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `reviewBots`           | GitHub login names whose comments and threads are treated as first-class AI review feedback. Matched against `author.login`; the `[bot]` suffix is normalised, so `claude` and `claude[bot]` both match (the GraphQL API returns the bare form). Edit to match your install — review-bot logins vary per repo. `github-actions` is deliberately excluded by default: it posts CI status and release-PR comments, not code review, so Phase B would otherwise action them as findings; add it only if your install genuinely posts review-type comments via the Actions bot.                                                                                                                                                                                                                                                                                                                   | `["claude", "cursor", "coderabbitai"]` |
-| `maxCiRounds`          | Maximum Phase-A re-watch iterations before stopping and reporting blockers. Bounds the fix-and-watch loop so it can't spin forever.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `5`                                    |
-| `replyOnAccept`        | Whether an **accepted** finding gets a factual thread reply referencing the fixing commit before the thread is resolved (the audit trail). `false` resolves accepted threads silently for maintainers who dislike bot-reply noise — declines always reply with reasoning regardless.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `true`                                 |
-| `promoteOnGreen`       | The single control for the draft→ready flip. When `true`, after Phase A finishes with **every** required check genuinely green on a **draft** PR, run `gh pr ready <pr>` to flip it to ready-for-review (the gate that turns AI review on), then continue into Phase B — instead of stopping at green. **Default-on**, and an enabled config _is_ the human authorisation for the flip: proceed on proven green without seeking a separate sign-off. Set `false` (or pass `--no-promote`) to opt out and stop at green. Promotion is suppressed unless the green is _proven_ (Step 6's watched rollup, never "no failures yet"), there are **no unresolved human review threads**, and `mergeStateStatus` shows no unresolved base drift (`BEHIND` / `DIRTY`). An explicit user prompt — or `--promote` / `--no-promote` — overrides this per run; `--ci-only` and `--dry-run` never promote. | `true`                                 |
-| `deferNonBlocking`     | When `true` (the default), a valid **in-scope** finding is proposed as **accept** only if it is **high-impact**; otherwise it is proposed as **follow-up** (same path as out-of-scope). High-impact means any of: it **blocks later work** on this PR or stacked work; it touches **Claude Code / agent-skill logic / CI or release infrastructure**; or it is **critical/high severity** (correctness, security, data-loss). You classify each finding yourself against those criteria — do **not** trust bot severity labels (CodeRabbit ⚠️/🧹, Bugbot grades). Set `false` to restore scope-only behaviour (every valid in-scope finding is proposed as accept; only out-of-scope findings become follow-ups).                                                                                                                                                                             | `true`                                 |
-| `humanEnvelope`        | When `true` (the default), Phase B **halts** after verify-then-propose with a full disposition plan (accept / decline / create a follow-up issue) and waits for one batch `[y/N]` (default no) before code changes, Linear create, or resolving replies. Proposed follow-up threads get a non-resolving `follow-up-pending` mark when the plan is presented so restarts do not re-emit them. Same gate covers findings from later AI re-reviews on this PR. Set `false` (or pass `--auto-apply`) to restore legacy auto Phase B (impact-gated fix-now; mark `follow-up-pending` on classify; Linear-only gate for follow-ups). Legacy CLI aliases `defer` / `defer-pending` still work. An explicit user prompt overrides the config per run.                                                                                                                                                 | `true`                                 |
-| `reviewIdleMinutes`    | Hybrid review-settle idle window: after at least one configured bot has reported, treat reviews as settled when there is **no new** bot headline / unresolved-thread activity for this many minutes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `5`                                    |
-| `reviewWaitMaxMinutes` | Hard cap on the hybrid wait after the ready flip (or Phase B entry on an already-ready PR). If bots are still missing when this expires, run the **slow-bot micro-gate** (proceed / wait longer / abort) before the disposition envelope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `20`                                   |
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `reviewBots` | GitHub login names whose comments and threads are treated as first-class AI review feedback. Matched against `author.login`; the `[bot]` suffix is normalised, so `claude` and `claude[bot]` both match (the GraphQL API returns the bare form). Edit to match your install — review-bot logins vary per repo. `github-actions` is deliberately excluded by default: it posts CI status and release-PR comments, not code review, so Phase B would otherwise action them as findings; add it only if your install genuinely posts review-type comments via the Actions bot. | `["claude", "cursor", "coderabbitai"]` |
+| `maxCiRounds` | Maximum Phase-A re-watch iterations before stopping and reporting blockers. Bounds the fix-and-watch loop so it can't spin forever. | `5` |
+| `replyOnAccept` | Whether an **accepted** finding gets a factual thread reply referencing the fixing commit before the thread is resolved (the audit trail). `false` resolves accepted threads silently for maintainers who dislike bot-reply noise — declines always reply with reasoning regardless. | `true` |
+| `promoteOnGreen` | The single control for the draft→ready flip. When `true`, after Phase A finishes with **every** required check genuinely green on a **draft** PR, run `gh pr ready <pr>` to flip it to ready-for-review (the gate that turns AI review on), then continue into Phase B — instead of stopping at green. **Default-on**, and an enabled config _is_ the human authorisation for the flip: proceed on proven green without seeking a separate sign-off. Set `false` (or pass `--no-promote`) to opt out and stop at green. Promotion is suppressed unless the green is _proven_ (Step 6's watched rollup, never "no failures yet"), there are **no unresolved human review threads**, and `mergeStateStatus` shows no unresolved base drift (`BEHIND` / `DIRTY`). An explicit user prompt — or `--promote` / `--no-promote` — overrides this per run; `--ci-only` and `--dry-run` never promote. | `true` |
+| `deferNonBlocking` | When `true` (the default), a valid **in-scope** finding is proposed as **accept** only if it is **high-impact**; otherwise it is proposed as **follow-up** (same path as out-of-scope). High-impact means any of: it **blocks later work** on this PR or stacked work; it touches **Claude Code / agent-skill logic / CI or release infrastructure**; or it is **critical/high severity** (correctness, security, data-loss). You classify each finding yourself against those criteria — do **not** trust bot severity labels (CodeRabbit ⚠️/🧹, Bugbot grades). Set `false` to restore scope-only behaviour (every valid in-scope finding is proposed as accept; only out-of-scope findings become follow-ups). | `true` |
+| `humanEnvelope` | When `true` (the default), Phase B **halts** after verify-then-propose with a full disposition plan (accept / decline / create a follow-up issue) and waits for one batch **Yes / No / Other** approval (**default yes**) before code changes, Linear create, or resolving replies — via Cursor `AskQuestion` or Claude Code `AskUserQuestion` when available, else prose `[Y/n]` (Step 10). Proposed follow-up threads get a non-resolving `follow-up-pending` mark when the plan is presented so restarts do not re-emit them. Same gate covers findings from later AI re-reviews on this PR (including `/send-it` → triage chains). Set `false` (or pass `--auto-apply`) to restore legacy auto Phase B (impact-gated fix-now; mark `follow-up-pending` on classify; Linear-only gate for follow-ups — see A-1654). Legacy CLI aliases `defer` / `defer-pending` still work. An explicit user prompt overrides the config per run. | `true` |
+| `reviewIdleMinutes` | Hybrid review-settle idle window: after at least one configured bot has reported, treat reviews as settled when there is **no new** bot headline / unresolved-thread activity for this many minutes. | `5` |
+| `reviewWaitMaxMinutes` | Hard cap on the hybrid wait after the ready flip (or Phase B entry on an already-ready PR). If bots are still missing when this expires, run the **slow-bot micro-gate** (proceed / wait longer / abort) before the disposition envelope. | `20` |
 
 The remaining five configure the **follow-up capture** path — turning a follow-up
 finding into a tracked Linear issue. Under `humanEnvelope`, capture is part of
@@ -91,13 +95,13 @@ the same envelope approval (not a second prompt). Under `--auto-apply` /
 **opt-in**: when `linearTeamName` is empty, it is disabled (no Linear MCP calls);
 skip silently when the Linear MCP server is unavailable.
 
-| Key               | Meaning                                                                                                                                                                                                                                                                                           | Default     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `linearTeamName`  | Linear team **name** (not the key — the key is renamed over time, the name is stable) the follow-up issues are created under. Empty disables capture entirely.                                                                                                                                    | `""`        |
-| `issueKeys`       | Team-key prefixes that may appear in branch names, used to recognise issue ids the same way `linear-sync` does. Mirrors the established `issueKeys` convention.                                                                                                                                   | `[]`        |
-| `followUpLabel`   | Optional label applied to each created follow-up issue (e.g. `follow-up`). Empty = no label.                                                                                                                                                                                                      | `""`        |
-| `followUpProject` | Linear project (name, id, or slug) used as the **catch-all** when a follow-up cannot inherit a live project from the PR's Linear issue. **Required when `linearTeamName` is set** — empty or unresolved must refuse create (never file with no project). Rheged estate value: `Follow-up issues`. | `""`        |
-| `followUpState`   | Optional initial workflow state (type, name, or id — e.g. `Backlog`) for created issues. Empty = the team's default state.                                                                                                                                                                        | `"Backlog"` |
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `linearTeamName` | Linear team **name** (not the key — the key is renamed over time, the name is stable) the follow-up issues are created under. Empty disables capture entirely. | `""` |
+| `issueKeys` | Team-key prefixes that may appear in branch names, used to recognise issue ids the same way `linear-sync` does. Mirrors the established `issueKeys` convention. | `[]` |
+| `followUpLabel` | Optional label applied to each created follow-up issue (e.g. `follow-up`). Empty = no label. | `""` |
+| `followUpProject` | Linear project (name, id, or slug) used as the **catch-all** when a follow-up cannot inherit a live project from the PR's Linear issue. **Required when `linearTeamName` is set** — empty or unresolved must refuse create (never file with no project). Rheged estate value: `Follow-up issues`. | `""` |
+| `followUpState` | Optional initial workflow state (type, name, or id — e.g. `Backlog`) for created issues. Empty = the team's default state. | `"Backlog"` |
 
 Only the configured `reviewBots` are actioned in Phase B. Human review comments
 are surfaced in the final report but never auto-actioned, replied to, or
@@ -335,7 +339,16 @@ ids, aiSummary comment ids}` each poll to detect "new activity" for the idle
 window.
 
 **Slow-bot micro-gate** — only when max wait expires with `botsMissing`
-non-empty. List arrived vs outstanding bots and ask **once** in this session:
+non-empty. List arrived vs outstanding bots and ask **once** in this session
+using the same dual-host structured-question pattern as Step 10:
+
+1. Put the timeout context in the chat message (reported vs outstanding bots).
+2. Prefer a structured question tool when available:
+   - **Cursor `AskQuestion`:** options **Proceed** / **Wait** / **Abort**.
+   - **Claude Code `AskUserQuestion`:** `header` e.g. `Review wait` (≤12 chars);
+     options **Proceed** / **Wait** / **Abort** (descriptions: continue with
+     findings so far / extend the wait / stop without an envelope).
+3. **Fallback** (neither tool): prose
 
 ```text
 Review wait timed out after <N> minutes.
@@ -344,11 +357,11 @@ Review wait timed out after <N> minutes.
 Proceed with what we have / wait longer / abort? [proceed|wait|abort]
 ```
 
-- **proceed** → continue to Step 8 with the findings so far (note missing bots in
+- **Proceed** → continue to Step 8 with the findings so far (note missing bots in
   the envelope report).
-- **wait** → reset the max-wait clock (or extend by another `reviewWaitMaxMinutes`)
+- **Wait** → reset the max-wait clock (or extend by another `reviewWaitMaxMinutes`)
   and return to the poll loop.
-- **abort** → stop; leave threads untouched; no disposition envelope.
+- **Abort** → stop; leave threads untouched; no disposition envelope.
 
 Do **not** open the disposition envelope until this gate is answered (or reviews
 settled via headlines/idle).
@@ -367,7 +380,8 @@ It prints minimal JSON including:
 
 - `unresolvedThreads` — inline review threads (`isResolved == false`) raised by a
   configured `reviewBot`, trimmed to `{threadId, path, line, isOutdated, author,
-comments}`. This is the actionable set.
+  url, comments}`. `url` is the first review-comment permalink when GitHub
+  provides one (use it in the Step 10 detail block). This is the actionable set.
 - `deferredThreads` — bot threads already carrying our **non-resolving follow-up-pending
   marker** (from a prior pass). Do not re-triage these in Step 9; include them in
   the envelope's follow-up set when rediscovering pending capture.
@@ -392,12 +406,17 @@ numbered **disposition plan** only:
 For each finding record:
 
 - source bot + path:line (or issue-level summary item)
+- thread / comment **permalink** when available (`url` on the shaped thread, or
+  the issue-comment / review URL for summary items) — omit rather than invent a
+  broken link
+- short finding paraphrase (1–3 sentences — enough to decide without opening GitHub)
 - verification sketch (real? in-scope? high-impact?)
 - proposed disposition: `accept` | `decline` | `follow-up` | `outdated` | `gated`
 - for `accept`: concrete fix sketch
 - for `decline`: technical reasoning
 - for `follow-up`: draft Linear title + rationale, **and** the destination line
   (`→ file under …`) from the routing step below
+- for `gated`: surface touched + preferred alternative
 
 Impact classification still follows `deferNonBlocking` (propose accept only when
 high-impact when that knob is on).
@@ -440,7 +459,50 @@ as soon as you classify a follow-up, then the Linear-only gate at Step 12).
 
 ### Step 10 — Phase B: human envelope (same-session gate)
 
-Present the full disposition plan as one batch and ask **once** (**default no**):
+Present the disposition plan as **one batch** and ask **once** (**default yes** —
+plans are generally accurate). Nothing is applied until the human answers.
+
+#### 1. Detail block (chat message, above the gate)
+
+Use **Option A — grouped by disposition**. Omit empty disposition sections.
+Full cards for `accept` / `follow-up` / `gated`. Routine `decline` / `outdated`
+items go in one compressed list unless the reason is non-obvious (then promote
+to a full card). Include a GitHub **thread permalink** on every item when the
+fetcher (or comment) provides `url`.
+
+```markdown
+## Disposition details
+
+### [accept] Null guard in src/api.ts:42
+- **Source:** CodeRabbit · [thread](https://github.com/org/repo/pull/12#discussion_r1)
+- **Finding:** Optional `user` used without a check before `.id`.
+- **Verify:** Real, in-scope, high-impact (would throw on anonymous).
+- **Fix:** Early return when `!user`.
+
+### [follow-up] Extract retry helper
+- **Source:** Claude · [thread](…)
+- **Finding:** Duplicated fetch-retry in three callers.
+- **Verify:** Real but non-blocking for this PR.
+- **Linear:** "Add retry backoff to fetch layer" → file under Triage PR upgrades
+
+### [gated] eslint.config.mjs rule change
+- **Source:** … · [thread](…)
+- **Finding:** …
+- **Verify:** …
+- **Why gated:** Would edit lint config; prefer shared package change unless signed off.
+
+### [decline] / [outdated]
+1. CodeRabbit · `README.md:14` — pinning wording already correct · [thread](…)
+2. Claude · exact-pinned astro — YAGNI for this PR · [thread](…)
+```
+
+#### 2. Compact plan + structured Yes / No / Other
+
+Keep a short numbered plan (for Other overrides by number) plus any bot-wait
+footer. Prefer a structured question tool when available — **at most one** such
+call per turn. Do **not** dump the full detail block into the question prompt.
+
+**Compact plan shape** (also used in the prose fallback):
 
 ```text
 Phase B disposition plan (nothing applied yet):
@@ -448,28 +510,56 @@ Phase B disposition plan (nothing applied yet):
   2. [decline] Suggested rewrite is YAGNI — …
   3. [follow-up] Extract retry helper — draft: "Add retry backoff to fetch layer"
      → file under Triage PR upgrades (inherited from A-1541)
-  4. [follow-up] Tighten Dependabot group — draft: "Group minor bumps"
-     → file under Follow-up issues / climbwell (no parent project)
-  5. [gated] Would need `eslint.config.mjs` rule change — your call; prefer a
+  4. [gated] Would need `eslint.config.mjs` rule change — your call; prefer a
      change to @rheged-studio/eslint-config
   Bots still outstanding at wait end: cursor (if any)
-Apply this plan? [y/N]
+```
+
+**Cursor — `AskQuestion` when available:**
+
+- Prompt: apply this Phase B disposition plan? (default yes; nothing applied yet).
+- Options: **Yes** | **No** | **Other (type overrides)**.
+
+**Claude Code — `AskUserQuestion` when available** (listed in `allowed-tools`):
+
+- `header`: `Apply plan` (≤12 chars).
+- `question`: apply this Phase B disposition plan? (default yes; nothing applied yet).
+- Options: **Yes (Recommended)** (apply as proposed) | **No** (apply nothing).
+- Rely on Claude Code’s automatic **Other** free-text path for typed overrides;
+  if a host build does not append Other, list an explicit third **Other** option.
+
+**Fallback** (neither `AskQuestion` nor `AskUserQuestion`):
+
+```text
+Apply this plan? [Y/n]
   (optional overrides: "yes except decline #1, follow-up #2 as …")
 ```
 
-Keep the session open for the answer — this gate **is** the actionable interrupt.
+#### 3. Interpret the answer
+
+Keep the session open — this gate **is** the actionable interrupt.
 Proposed follow-up threads should already carry the `follow-up-pending` marker from
 Step 9 (durable, still open).
 
-- **No / empty** → leave remaining threads untouched (optional: decline
-  `follow-up-pending` threads with `Follow-up not tracked` if you want them closed);
-  stop; no Step 13 "all done" claim beyond "envelope declined; nothing applied".
-- **Yes** (with optional per-item overrides) → apply the approved plan in Step 11.
-- Under `--dry-run`, print the plan that _would_ be proposed and create nothing.
+- **Yes** (default / Recommended / empty Enter on `[Y/n]`) → apply the plan in
+  Step 11.
+- **No** / Skip / dismiss-as-cancel → leave remaining threads untouched (optional:
+  decline `follow-up-pending` threads with `Follow-up not tracked` if you want them
+  closed); stop; no Step 13 "all done" claim beyond "envelope declined; nothing
+  applied".
+- **Other** / typed overrides → interpret freeform changes (`yes except decline
+  #1, follow-up #2 as …`). If unclear, **one** clarifying turn — still no apply
+  until resolved.
+- Under `--dry-run`, print the detail block + plan that _would_ be proposed and
+  create nothing (do not call the question tools).
 
 The same envelope covers findings from **later** AI re-reviews on this PR
 (Step 12 re-envelope) — one gate for all dispositions, including new Linear
-follow-ups.
+follow-ups, using this same Questions contract (including when `/send-it` chained
+into this run).
+
+Fleet rollout of this Questions pattern to other skills is tracked under A-1655;
+the auto-apply Linear-only gate is intentionally unchanged here (A-1654).
 
 ### Step 11 — Phase B: apply approved dispositions
 
@@ -538,13 +628,13 @@ that destination on mint (creating the catch-all milestone with
    2. else the PR title — if it has at least one match, the **first** match is
       the parent;
    3. else there is **no** parent id — skip inherit and go to step 2.
-      `get_issue` on that id. If it has a `project`, resolve that project with
-      `list_projects` and inspect its status **type**. Types `completed` and
-      `canceled` are **not live** — treat as no inherit. On a live project: pass
-      that `project` on `save_issue`, set `relatedTo` to the parent id, and **do
-      not** nest as a sub-issue (`parentId`). **Do not** attach a Follow-up
-      issues milestone. Envelope line:
-      `file under <project> (inherited from A-NNNN)`.
+   `get_issue` on that id. If it has a `project`, resolve that project with
+   `list_projects` and inspect its status **type**. Types `completed` and
+   `canceled` are **not live** — treat as no inherit. On a live project: pass
+   that `project` on `save_issue`, set `relatedTo` to the parent id, and **do
+   not** nest as a sub-issue (`parentId`). **Do not** attach a Follow-up
+   issues milestone. Envelope line:
+   `file under <project> (inherited from A-NNNN)`.
 2. **Otherwise fall back to `followUpProject` (the catch-all).** Typical
    reasons: no issue id, parent has no project, or the parent project is
    completed/canceled. If `followUpProject` is empty → **do not** call
@@ -575,13 +665,15 @@ node scripts/respond-threads.mjs summary --pr <pr> --findings '[{"title":"…","
 ```
 
 Then re-fetch (Step 8). If **new** unresolved bot findings appear (fresh review
-after the apply push), return to Step 7 → envelope again (full disposition batch,
-including any new Linear candidates). Bound by `maxCiRounds`. If CI is terminal
+after the apply push), return to Step 7 → Step 9 → **Step 10 envelope again**
+(same Option A detail + structured Yes/No/Other contract, including any new
+Linear candidates). Bound by `maxCiRounds`. If CI is terminal
 green and there are no new bot findings, continue to Step 13.
 
 Under auto-apply, if only `deferredThreads` / follow-up candidates remain without an
 envelope, present the legacy Linear-only batch `[y/N]` here (default no), then
-ack summaries.
+ack summaries. Structured Questions for that Linear-only gate are out of scope
+here (A-1654).
 
 ### Step 13 — Report
 
@@ -662,10 +754,12 @@ Summarise:
   exhaustion — never with interim "still waiting" pings mid-watch.
 - **Human envelope is on by default.** When `humanEnvelope` is true, do not
   apply Phase B dispositions (code, resolving replies, Linear creates) until the
-  same-session batch `[y/N]` succeeds — except the non-resolving `follow-up-pending`
-  mark on proposed follow-up threads when the plan is presented. `--auto-apply` /
-  `humanEnvelope: false` restores legacy auto Phase B. Re-envelope when new bot
-  findings appear after apply.
+  same-session batch **Yes / No / Other** gate succeeds (**default yes**;
+  `AskQuestion` / `AskUserQuestion` when available, else `[Y/n]`) — except the
+  non-resolving `follow-up-pending` mark on proposed follow-up threads when the
+  plan is presented. `--auto-apply` / `humanEnvelope: false` restores legacy auto
+  Phase B. Re-envelope (same Questions contract) when new bot findings appear
+  after apply, including `/send-it` → triage chains.
 - **Draft → ready is guarded, and on by default.** `promoteOnGreen` is the single
   control for the flip, and an enabled config _is_ the authorisation: with it on (the
   default) the skill flips the PR — **only** after a _proven_-green Phase A, with **no

@@ -1,8 +1,8 @@
 {
   "name": "@rheged-studio/skill-send-it",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
-  "description": "Agent skill: the all-in-one ship finisher — bundle uncommitted work into atomic commits, run the change-gated lint preflight, author or update the dated changelog entry, compose a Conventional Commits PR title, push, open or update a PR, and transition linked Linear issues to In Review.",
+  "description": "Agent skill: the all-in-one ship pipeline \u2014 bundle uncommitted work into atomic commits, run the change-gated lint preflight, author or update the dated changelog entry, compose a Conventional Commits PR title, push, open or update a PR, transition linked Linear issues to In Review, then chain into triage-pr (CI fix, promote-on-green, Phase B) up to the human envelope. Stopping at an open draft is incomplete unless --skip-triage / triage: false was used with a stated reason.",
   "keywords": [
     "agent-skill",
     "claude-code",
