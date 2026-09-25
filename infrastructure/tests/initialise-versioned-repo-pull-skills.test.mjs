@@ -163,6 +163,10 @@ describe("pullSharedSkills", () => {
     );
     const locked = Object.keys(lock.skills).toSorted();
     expect(locked).not.toContain("initialise-versioned-repo");
-    expect([...SHARED_SKILLS].toSorted()).toEqual(locked);
+    // Lock is now multi-source (Rheged + Matt catalogue). SHARED_SKILLS is the
+    // Rheged pull set the scaffolder still installs from agent-skills.
+    for (const skill of SHARED_SKILLS) {
+      expect(locked).toContain(skill);
+    }
   });
 });
