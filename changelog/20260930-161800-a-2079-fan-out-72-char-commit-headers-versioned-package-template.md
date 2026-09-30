@@ -3,16 +3,20 @@ title: Vendor send-it 0.9.1 and commit 0.2.0
 release_note: ""
 version:
 created_at: "2026-09-30T16:18:00Z"
-merged_at:
+merged_at: "2026-09-30T16:16:28Z"
 branch: a-2079-fan-out-72-char-commit-headers-versioned-package-template
-pr:
-commit:
+pr: 50
+commit: a83e172
 author: rob@rheged.studio
 co_authors: []
 category: chore
 breaking: false
 issues:
   - A-2079
+stats:
+  loc_added: 124
+  loc_removed: 26
+  files_changed: 14
 ---
 
 ## Changed
