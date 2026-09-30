@@ -17,7 +17,7 @@ compatibility: >-
   dependency; the grouping logic is model-driven and this prose is the source of
   truth.
 metadata:
-  version: 0.1.3
+  version: 0.2.0
   author: Rob Easthope
 allowed-tools: Read, Bash(git:*)
 ---
@@ -96,6 +96,15 @@ classification against a **different** base for that run — for instance send-i
    - Use Conventional Commits subjects (`feat:`, `fix:`, `chore:`, `docs:`,
      `refactor:`, `perf:`, `test:`), with a scope when one is obvious
      (`feat(commit): …`).
+   - Keep the **header** (the entire first line: `type`, optional `(scope)`,
+     optional `!`, `:`, then the subject text) at **72 characters or under**.
+     That is Git's usual subject ceiling; it is not part of the Conventional
+     Commits spec. `feat(commit): add out-of-scope guard` counts the type, scope,
+     colon and space — not just the text after the colon. If a natural header
+     would overflow, rewrite until it fits: prefer dropping an optional scope
+     before losing meaning. Do not ellipsis-truncate mid-word, never drop the
+     type prefix, and do not wrap the header onto a second line to dodge the
+     cap (that would make a body, not a shorter header).
    - For a **breaking change**, mark it honestly: a `!` after the type/scope
      (`feat(api)!: …`) and/or a `BREAKING CHANGE:` footer in the body. A ship flow
      reads the bump signal back out of these commit messages, so the markers must
@@ -118,6 +127,11 @@ Author commit subjects and bodies in the consuming repo's documented prose
 language. Across this estate that is **British English** (`colour`, `behaviour`,
 `-ise`/`-yse`). This governs prose only — never identifiers, dependency names, or
 upstream API field names.
+
+The Conventional Commits **header** — the whole first line — must be **≤ 72
+characters**. Count `type`, optional scope, optional `!`, the colon and space,
+and the subject. Rewrite a too-long header; do not wrap it into the body to
+dodge the cap. Body and footer line length are out of scope here.
 
 ## Grouping granularity — per-component splitting is parked
 
