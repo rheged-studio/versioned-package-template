@@ -3,8 +3,10 @@
 The all-in-one ship pipeline. Finish coding, then run send-it: it commits
 uncommitted work into atomic commits, runs the change-gated lint preflight,
 authors or updates the dated `changelog/<ts>-<slug>.md` entry, composes a
-**Conventional Commits PR title** (CI + humans; feature PRs merge via merge
-commit and release-please ranks landed commit subjects for the bump — A-1176),
+**Conventional Commits PR title** (CI + humans; a derived title's entire first
+line is at most 72 characters; a supplied `--title` stays verbatim and warns if
+overlong; feature PRs merge via merge commit and release-please ranks
+landed commit subjects for the bump — A-1176),
 pushes the branch, opens or updates a pull request, transitions the linked
 Linear issues to **In Review**, and then drives that PR to merge-ready.
 

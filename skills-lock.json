@@ -35,7 +35,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/commit/SKILL.md",
-      "computedHash": "bb2224da3719fdc4a2b292898618530741476bb6036e6d8a1b8edfcbf8640529"
+      "computedHash": "c58e58df4fb10b3c5c6efcc103ab1645f80eb9a5489f11d3cb4a9333989c4151"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -131,7 +131,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/send-it/SKILL.md",
-      "computedHash": "fbbb39d52b98e0fc6882a6c391d34d37bbbedd8352f2782177874396665e0e98"
+      "computedHash": "f7dabe67585b9fa1859df29274a58b025a8359670f25c3214dcd96efd821bba0"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",

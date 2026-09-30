@@ -20,7 +20,7 @@ compatibility: >-
   silently; missing `triage-pr` warns and stops at the open PR (not a successful
   default run — install it).
 metadata:
-  version: 0.8.2
+  version: 0.9.1
   author: Rob Easthope
 allowed-tools: Write, Read, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Bash(pnpm:*), Bash(node:*), Bash(npx:*), mcp__linear-server__get_issue, mcp__linear-server__save_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects
 ---
@@ -206,8 +206,9 @@ files **in-scope vs out-of-scope** against the merge base (`git merge-base HEAD
 origin/<base>`), show a staging plan flagging any out-of-scope files (never `git
 add -A`; stray files from another branch/worktree are never staged silently), and
 create **logical atomic Conventional Commits** (type + optional scope +
-British-English body; `!` / `BREAKING CHANGE:` for breaking changes). If clean,
-skip this step. Direct the `commit` skill to classify against **this** send-it
+British-English body; `!` / `BREAKING CHANGE:` for breaking changes; headers
+follow that skill's ≤72-character rule, including send-it's own later
+`git commit -m` lines). If clean, skip this step. Direct the `commit` skill to classify against **this** send-it
 run's resolved base — `<base>` is `baseBranch` (from `config.json`), or `--base`
 when passed — **not** the `commit` skill's own `config.json` `baseBranch`, which
 differs on a `--base` run (the stacked-PR case). The scope classification and the
@@ -349,7 +350,9 @@ as `feat:`/`fix:` and cut a spurious release.)
    `skillPath` (`metadata.version`) to the chosen version — in lockstep, so the
    parity invariant CI checks still holds — then stage and commit just those two
    files: `git commit -m "chore(<name>): release <name>@<version>"`. On `no`, leave
-   it and continue. Under `--dry-run`, print the proposal and edit nothing.
+   it and continue. Under `--dry-run`, print the proposal and edit nothing. That
+   subject must stay ≤72 characters (the type, scope, colon, space, and rest of
+   the first line).
 
 4. **Compose the PR title** as a single Conventional Commits subject — CI's
    PR-title lint and the changelog-completeness gate still require it. For **feature
@@ -358,7 +361,8 @@ as `feat:`/`fix:` and cut a spurious release.)
    the dominant type. For **squash** paths (release + fan-out), the squash subject
    is still the bump declaration. If `--title` was passed, use it verbatim (still
    run `derive-bump` above for the changelog `category`, and **warn** — don't block
-   — if the supplied type contradicts the derived `type`/`releaseTriggering`).
+   — if the supplied type contradicts the derived `type`/`releaseTriggering`, or
+   if the supplied title exceeds 72 characters).
    Otherwise build it straight from the derived fields:
    - **Prefix** = `type` (add a scope when one is obvious, e.g. `feat(<scope>):`), plus
      `!` when `breaking` — so `feat: <body>`, `fix: <body>`, `perf: <body>`,
@@ -367,6 +371,12 @@ as `feat:`/`fix:` and cut a spurious release.)
      release type (`feat`/`fix`/`perf`, or any `!`). Add the scope; that's it.
    - **Non-release** (`releaseTriggering: false`) → the prefix is a non-release type
      (`docs`/`refactor`/`chore`/`ci`/`build`/`test`/`style`).
+   - **Header length.** The entire title — `type`, optional `(scope)`, optional `!`,
+     `:`, then the subject — must be **≤ 72 characters** (Git's usual subject
+     ceiling; the same cap as the `commit` skill). If `type` + optional scope +
+     `body` would overflow, rewrite until it fits: prefer dropping an optional
+     scope before losing meaning. Do not ellipsis-truncate mid-word, and never
+     drop the type prefix.
 
    > ⚠️ **Keep the title honest with the commits.** A mistyped prefix misleads
    > reviewers and the completeness gate — a `feat:` on a docs-only branch, or a
@@ -433,6 +443,10 @@ only that file:
 git add changelog/<YYYYMMDD-HHMMSS>-<slug>.md
 git commit -m "docs(changelog): <one-line summary>"
 ```
+
+`<one-line summary>` must keep the **entire header** (type, scope, colon, space,
+and summary) at **72 characters or under** — rewrite the summary if it would
+overflow. Do not wrap the header onto a second line.
 
 Then push the branch:
 
@@ -637,7 +651,7 @@ the linked issues are already In Review before triage begins.
   it (escape hatch for when derivation picks the wrong type). It must still be a valid
   Conventional Commits subject (CI lints it). `derive-bump` still runs (its `category`
   drives the changelog entry); send-it **warns** if the supplied type contradicts the
-  derived `type`/`releaseTriggering`.
+  derived `type`/`releaseTriggering`, or if the supplied title exceeds 72 characters.
 - `--skip-preflight` — skip the Step 5 lint gate entirely, printing a bypass warning.
 - `--skip-triage` — end the run at the open PR: skip the Step 11 `triage-pr` chain
   (identical to `config.json` `triage: false`). Restores the pre-0.8.0
@@ -666,6 +680,12 @@ the linked issues are already In Review before triage begins.
   this estate that is **British English** (`colour`, `behaviour`, `-ise`/`-yse`); the
   `changelog` skill applies the same rule to the entry it writes. This governs prose
   only — never identifiers, dependency names, or upstream API field names.
+- **Conventional Commits headers are ≤ 72 characters.** Every first line send-it
+  writes — delegated `/commit` subjects, send-it's own `git commit -m` lines (lockfile,
+  bundle bump, changelog), and the derived PR title — counts the entire header
+  (`type`, optional scope, optional `!`, `:`, subject). Rewrite a too-long header;
+  do not wrap it into the body to dodge the cap. `--title` stays verbatim but
+  warns when it exceeds 72. Body and footer wrapping are out of scope here.
 - **Trunk-based:** PRs target the base branch (`config.json` `baseBranch`, or
   `--base` for this run).
 - **send-it bumps only per-bundle versions, never the repo version.** The optional

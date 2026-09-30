@@ -44,4 +44,5 @@ Run standalone as `/commit`, or as the commit step inside a ship flow (e.g.
 `/send-it`, which delegates its commit step to this skill). See
 [`SKILL.md`](SKILL.md) for the full contract: the in-scope/out-of-scope
 classification, the staging-plan confirmation, the atomic-grouping rules, and the
-Conventional Commits formatting (including `!` / `BREAKING CHANGE:` markers).
+Conventional Commits formatting (including `!` / `BREAKING CHANGE:` markers, and
+a header — the entire first line — of at most 72 characters).
