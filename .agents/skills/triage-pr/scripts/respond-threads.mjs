@@ -34,6 +34,7 @@
 //   (legacy aliases defer / defer-pending still accepted)
 //   node respond-threads.mjs thread --thread <PRRT_id> --decision accept --sha <sha> --reply-on-accept false
 //   node respond-threads.mjs summary --pr <n> [--repo owner/name] --findings '<json>'
+//   node respond-threads.mjs plan --pr <n> --body '<markdown>' [--repo owner/name]
 //   …add --dry-run to any mutating subcommand to print the plan without writing.
 
 import { execFileSync } from "node:child_process";
@@ -43,6 +44,10 @@ import { readFileSync, realpathSync } from "node:fs";
 // so a thread reply is never mistaken for the issue-level summary comment.
 export const THREAD_MARKER = "<!-- triage-pr:thread-ack -->";
 export const SUMMARY_MARKER = "<!-- triage-pr:summary-ack -->";
+/**
+ * Unattended Phase B disposition plan (upserted before apply; A-2013 / A-2014).
+ */
+export const DISPOSITION_PLAN_MARKER = "<!-- triage-pr:disposition-plan -->";
 // Non-resolving marker written the moment a follow-up is filed (Step 8), before
 // its ticket exists (Step 10). Distinct from THREAD_MARKER on purpose: it must NOT
 // mark the thread "handled" — Step 10 still posts the real follow-up reply and resolves.
@@ -94,7 +99,7 @@ const STATUSES = new Set(["accepted", "declined", "out-of-scope"]);
 
 // Mirrors review-threads.mjs: GraphQL returns bot logins WITHOUT the `[bot]`
 // suffix, so config written either way still matches.
-const DEFAULT_BOTS = ["claude", "cursor", "coderabbitai"];
+const DEFAULT_BOTS = ["claude", "coderabbitai"];
 
 // ---- pure transform (no network) ----------------------------------------
 
@@ -173,6 +178,13 @@ export function buildReplyBody({ decision, reason, reference, sha }) {
     return `Filed as follow-up issue ${trimmed}; not fixing on this PR.\n\n${THREAD_MARKER}`;
   }
 
+  if (canonical === "outdated") {
+    // Only after verifying the cited code is really gone (not merely moved): one
+    // line saying so, so the resolve is never silent. `reason` overrides it.
+    const trimmed = String(reason ?? "").trim();
+    return `${trimmed || "Outdated: the cited code is no longer on this branch, so there is nothing left to change here."}\n\n${THREAD_MARKER}`;
+  }
+
   if (canonical === "follow-up-pending") {
     // Recorded at Step 8, before a ticket exists — so no reference. Carries the
     // NON-resolving FOLLOW_UP_PENDING_MARKER, never THREAD_MARKER, so Step 10 still
@@ -236,8 +248,12 @@ export function planThreadResponses(decisions, { replyOnAccept = true } = {}) {
     }
 
     if (decision === "outdated") {
-      // Outdated finding (cited code no longer exists): resolve, no reply.
-      return { kind: "resolve-only", threadId };
+      // Outdated finding (cited code verified gone): one-line reply, then resolve.
+      return {
+        body: buildReplyBody({ decision, reason: entry.reason }),
+        kind: "reply-resolve",
+        threadId,
+      };
     }
 
     if (decision === "decline") {
@@ -354,6 +370,39 @@ export function findExistingAckComment(comments) {
   );
 }
 
+/**
+ * Build the unattended Phase B disposition-plan comment. Carries
+ * {@link DISPOSITION_PLAN_MARKER} so a re-run edits it in place.
+ * @param {string} planMarkdown — full plan body (numbered items, detail sections).
+ */
+export function buildDispositionPlanComment(planMarkdown) {
+  const trimmed = String(planMarkdown ?? "").trim();
+  if (!trimmed) {
+    throw new Error(
+      "buildDispositionPlanComment requires non-empty plan markdown",
+    );
+  }
+
+  return [
+    "### triage-pr — Phase B disposition plan",
+    "",
+    trimmed,
+    "",
+    DISPOSITION_PLAN_MARKER,
+  ].join("\n");
+}
+
+/**
+ * Find our prior disposition-plan comment so it is edited in place, not duplicated.
+ */
+export function findExistingDispositionPlanComment(comments) {
+  return (
+    (comments ?? []).find((comment) =>
+      hasMarker(comment.body, DISPOSITION_PLAN_MARKER),
+    ) ?? null
+  );
+}
+
 // ---- argument parsing ----------------------------------------------------
 
 /**
@@ -408,6 +457,7 @@ const THREAD_FLAGS = [
   "bots",
 ];
 const SUMMARY_FLAGS = ["pr", "repo", "findings"];
+const PLAN_FLAGS = ["pr", "repo", "body"];
 
 /**
  * Coerce a --reply-on-accept string to a boolean (default true).
@@ -681,6 +731,41 @@ function runSummary(options) {
   console.log(JSON.stringify(result, null, 2));
 }
 
+/**
+ * Read the --body value: an inline string or `@path` to a file.
+ */
+function readBody(raw) {
+  if (!raw) {
+    throw new Error("plan requires --body '<markdown>' or --body @path");
+  }
+
+  return raw.startsWith("@") ? readFileSync(raw.slice(1), "utf8") : raw;
+}
+
+/**
+ * `plan` — upsert the unattended Phase B disposition plan on the PR.
+ */
+function runPlan(options) {
+  const number = Number(options.pr);
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error("plan requires --pr <number>");
+  }
+
+  const repo = options.repo ?? detectRepo();
+  const body = buildDispositionPlanComment(readBody(options.body));
+
+  if (options.dryRun) {
+    console.log(body);
+    return;
+  }
+
+  const existing = findExistingDispositionPlanComment(
+    fetchIssueComments(repo, number),
+  );
+  const result = upsertIssueComment(repo, number, body, existing?.id);
+  console.log(JSON.stringify(result, null, 2));
+}
+
 // ---- self-test -----------------------------------------------------------
 
 /**
@@ -695,6 +780,11 @@ function selfTest() {
       threadId: "T_decline",
     },
     { decision: "outdated", threadId: "T_outdated" },
+    {
+      decision: "outdated",
+      reason: "Outdated: the helper was deleted in abc1234.",
+      threadId: "T_outdated_reason",
+    },
     { decision: "follow-up", reference: "A-601", threadId: "T_follow_up" },
     { decision: "follow-up-pending", threadId: "T_follow_up_pending" },
     {
@@ -757,6 +847,14 @@ function selfTest() {
     { body: `### summary\n${SUMMARY_MARKER}`, id: 2, user: "me" },
   ]);
 
+  const dispositionPlan = buildDispositionPlanComment(
+    "1. [accept] Fix null guard — verified in-scope.",
+  );
+  const existingPlan = findExistingDispositionPlanComment([
+    { body: "noise", id: 1, user: "human" },
+    { body: `plan\n${DISPOSITION_PLAN_MARKER}`, id: 3, user: "me" },
+  ]);
+
   const cases = [
     {
       name: "accepted thread → reply-resolve referencing the sha",
@@ -772,9 +870,19 @@ function selfTest() {
         byId.T_decline.body.includes("Breaks the public API."),
     },
     {
-      name: "outdated thread → resolve-only, no reply",
+      name: "outdated thread → reply-resolve with a default one-line reply",
       ok:
-        byId.T_outdated.kind === "resolve-only" && !("body" in byId.T_outdated),
+        byId.T_outdated.kind === "reply-resolve" &&
+        byId.T_outdated.body.startsWith("Outdated:") &&
+        byId.T_outdated.body.includes(THREAD_MARKER),
+    },
+    {
+      name: "outdated thread → --reason overrides the default reply",
+      ok:
+        byId.T_outdated_reason.kind === "reply-resolve" &&
+        byId.T_outdated_reason.body.startsWith(
+          "Outdated: the helper was deleted in abc1234.",
+        ),
     },
     {
       name: "follow-up thread → reply-resolve referencing the ticket",
@@ -890,6 +998,35 @@ function selfTest() {
     {
       name: "findExistingAckComment returns null when absent",
       ok: findExistingAckComment([{ body: "lgtm", id: 1, user: "h" }]) === null,
+    },
+    {
+      name: "disposition plan comment carries the marker and heading",
+      ok:
+        dispositionPlan.includes("Phase B disposition plan") &&
+        dispositionPlan.includes("null guard") &&
+        dispositionPlan.includes(DISPOSITION_PLAN_MARKER),
+    },
+    {
+      name: "buildDispositionPlanComment throws on empty body",
+      ok: (() => {
+        try {
+          buildDispositionPlanComment("  ");
+          return false;
+        } catch {
+          return true;
+        }
+      })(),
+    },
+    {
+      name: "findExistingDispositionPlanComment matches the marker-bearing comment",
+      ok: existingPlan?.id === 3,
+    },
+    {
+      name: "findExistingDispositionPlanComment returns null when absent",
+      ok:
+        findExistingDispositionPlanComment([
+          { body: "lgtm", id: 1, user: "h" },
+        ]) === null,
     },
     {
       name: "parseReplyOnAccept defaults to true, parses booleans",
@@ -1016,6 +1153,7 @@ const USAGE = `respond-threads — reply to and resolve AI review threads on a P
 Usage:
   respond-threads thread  --thread <PRRT_id> --decision <accept|decline|outdated|follow-up|follow-up-pending> [--sha <sha>] [--reason <text>] [--reference <ticket>] [--reply-on-accept <true|false>] [--bots <csv>] [--dry-run]
   respond-threads summary --pr <number> --findings <json> [--repo <owner/name>] [--dry-run]
+  respond-threads plan    --pr <number> --body <markdown|@file> [--repo <owner/name>] [--dry-run]
   respond-threads --self-test
   respond-threads --help
 
@@ -1025,6 +1163,7 @@ Subcommands:
              follow-up-pending replies with a non-resolving marker and leaves it open).
              Legacy aliases defer / defer-pending are still accepted.
   summary    Upsert the consolidated issue-level acknowledgement comment.
+  plan       Upsert the unattended Phase B disposition plan (humanEnvelope: false).
 
 Other:
   --dry-run    Print the planned gh calls and change nothing (no replies, no resolves).
@@ -1049,9 +1188,11 @@ function main() {
       runThread(parseArgs(argv.slice(1), THREAD_FLAGS));
     } else if (command === "summary") {
       runSummary(parseArgs(argv.slice(1), SUMMARY_FLAGS));
+    } else if (command === "plan") {
+      runPlan(parseArgs(argv.slice(1), PLAN_FLAGS));
     } else {
       throw new Error(
-        `unknown command: ${command ?? "(none)"} — expected thread | summary | --self-test | --help`,
+        `unknown command: ${command ?? "(none)"} — expected thread | summary | plan | --self-test | --help`,
       );
     }
   } catch (error) {

@@ -20,7 +20,7 @@ compatibility: >-
   Linear debt-issue step needs the Linear MCP server; skip it silently if
   unavailable.
 metadata:
-  version: 0.3.0
+  version: 0.4.1
   author: Rob Easthope
 allowed-tools: Read, Bash(git:*), Bash(pnpm:*), Bash(node:*), mcp__linear-server__save_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects
 ---
@@ -52,7 +52,12 @@ They operate on the **consumer repo's root** (run them from the repo root, where
 2. Run the preflight: `node skills/preflight/scripts/preflight.mjs` (append
    `--dry-run` to report categories and scoped file lists without classifying
    violations). `--dry-run` is a true preview — every linter reports `would-run`
-   and nothing is written, including `.preflight-summary.json`.
+   and nothing is written, including `.preflight-summary.json`. Before anything
+   else, the script checks that the active Node major matches the repo's pin —
+   an exact `engines.node` pin (`24.x`, `24.18.0`) or, failing that, the `.nvmrc`
+   major — and exits 1 with a switch hint (`nvm use` / `fnm use` / `mise use`) if
+   it does not, so ESLint never runs under the wrong Node. A `>=` / `^` / `~`
+   engines range is not a pin; a repo with neither is unchecked.
 3. Read `.preflight-summary.json` for the categories run and the violation counts
    (`passed`, `deferred`, `blocking`). Written only on a real run, not under
    `--dry-run`. It is a transient scratch artefact, never committed — consumer
@@ -78,7 +83,9 @@ The script's exit code drives the loop:
     After creating (or refusing), decide whether to continue or abort.
 
 Exit 1 can also signal a linter that failed to run (non-zero exit with no
-parseable violations) — inspect its stderr; this is blocking too.
+parseable violations) — inspect its stderr; this is blocking too — or a Node
+major mismatch (see step 2): switch Node and re-run, don't treat it as a lint
+failure.
 
 ## Categories
 

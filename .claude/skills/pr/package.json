@@ -1,0 +1,30 @@
+{
+  "name": "@rheged-studio/skill-pr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent skill: write or update a pull request body — a Summary visual, a full Changes list grouped by intent, honest before/after Evidence, Merge Danger with the release note, and Related Issues, with a hand-edited region carried across regenerations.",
+  "keywords": [
+    "agent-skill",
+    "claude-code",
+    "cursor",
+    "github",
+    "pull-request"
+  ],
+  "homepage": "https://github.com/rheged-studio/agent-skills/tree/main/skills/pr#readme",
+  "bugs": {
+    "url": "https://github.com/rheged-studio/agent-skills/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rheged-studio/agent-skills.git",
+    "directory": "skills/pr"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Rob Easthope",
+    "url": "https://github.com/RobEasthope"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -21,13 +21,15 @@ detector serves every skill that uses a key. A key found in a skill's
 | `shippableManifestKeys` | send-it | Fixed | `["name", "version", "files", "publishConfig"]` |
 | `bundleVersioning` | send-it | Present only when the repo ships multiple skill bundles (a `skills/`-style dir with ≥1 `SKILL.md` subdir) | omitted otherwise |
 | `triage` | send-it | Fixed (chain into `triage-pr` once the PR is open — send-it Step 11). Not keyed off `triage-pr` being vendored: Step 11 soft-skips with a warning when the sibling is absent (A-1151) | `true` |
-| `reviewBots` | triage-pr | Fixed | `["claude", "cursor", "coderabbitai"]` |
+| `reviewBots` | triage-pr | Fixed | `["claude", "coderabbitai"]` |
 | `maxCiRounds` | triage-pr | Fixed | `5` |
+| `maxReviewRounds` | triage-pr | Fixed (Phase B re-review rounds after apply pushes) | `2` |
+| `reviewBotChecks` | triage-pr | `{ "claude": { "name": "<job id>", "producer": "github-actions" } }` when a `.github/workflows/*.yml` job calls the estate `reusable-claude-code-review.yml` (the caller job id is the check's leading `<job id> / claude-review` segment), so a clean Claude review settles on its terminal check (A-2453); `{}` otherwise. An existing `{}` equals the example placeholder, so it is filled on reconcile; any other mapping is a deliberate edit (drift) and is kept | `{}` |
 | `deferNonBlocking` | triage-pr | Fixed (impact gate: defer valid in-scope but non-blocking findings) | `true` |
-| `humanEnvelope` | triage-pr | Fixed (halt Phase B for a disposition approval before applying) | `true` |
-| `reviewIdleMinutes` | triage-pr | Fixed (hybrid review-settle idle window) | `5` |
+| `humanEnvelope` | triage-pr | Fixed (unattended Phase B; set `true` to halt for disposition approval) | `false` |
+| `reviewIdleMinutes` | triage-pr | Fixed (hybrid review-settle idle window) | `10` |
 | `reviewWaitMaxMinutes` | triage-pr | Fixed (hybrid review-settle hard cap) | `20` |
-| `followUpLabel` | triage-pr | Fixed (opt-in follow-up capture; empty = no label) | `""` |
+| `followUpLabel` | triage-pr | Fixed (opt-in follow-up capture) | `"follow-up"` |
 | `followUpProject` | triage-pr | Supplied via stdin `facts.followUpProject`; **fallback catch-all** when a follow-up cannot inherit a live project from the PR's Linear issue (A-1541). Required when capture is on (`linearTeamName` set) | `needs-manual-input` when team is set and no fact; `""` when capture is off |
 | `followUpState` | triage-pr | Fixed (opt-in follow-up capture; initial state for created issues) | `"Backlog"` |
 | `workspaces` | preflight | n/a — preflight self-detects | never written |

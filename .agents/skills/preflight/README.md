@@ -20,7 +20,9 @@ npx skills add https://github.com/rheged-studio/agent-skills --skill preflight -
 ## Requirements
 
 - Node.js ≥22 (per the package's `engines`) for the bundled scripts — **no npm
-  dependencies**, Node built-ins only, no build step.
+  dependencies**, Node built-ins only, no build step. If the consumer repo pins a
+  Node major (`.nvmrc`, or an exact `engines.node` such as `24.x`), the active
+  Node must match it — preflight exits 1 with a switch hint otherwise.
 - The `git` CLI, for the branch/diff analysis.
 - The consumer repo's own **ESLint** and **markdownlint-cli2** (invoked via
   `pnpm exec`), with their configs in place. preflight lints with your toolchain;

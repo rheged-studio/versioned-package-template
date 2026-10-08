@@ -84,7 +84,41 @@ export function sameSet(a, b) {
 // Keys whose array value is semantically a set: detecting ["ASW","SK"] when the
 // config says ["SK","ASW"] is NOT drift, so we compare order-insensitively (and
 // keep the existing order on write to avoid churn).
-const SET_KEYS = new Set(["issueKeys"]);
+const SET_KEYS = new Set(["issueKeys", "reviewBots"]);
+
+// Removed from estate review-bot lists; strip on reconcile so legacy configs heal (A-2054).
+const DEPRECATED_REVIEW_BOTS = new Set(["cursor"]);
+
+function normaliseReviewBotLogin(value) {
+  return String(value ?? "").replace(/\[bot\]$/, "");
+}
+
+/**
+ * When the only drift on `reviewBots` is a deprecated login, write the detected list.
+ * @param {KeyResult} result
+ * @param {unknown} ours
+ * @param {{ value: unknown } | null} theirs
+ * @returns {KeyResult}
+ */
+function reconcileReviewBots(result, ours, theirs) {
+  if (
+    result.status !== "drift" ||
+    theirs === null ||
+    !Array.isArray(ours) ||
+    !Array.isArray(theirs.value)
+  ) {
+    return result;
+  }
+
+  const stripped = ours.filter(
+    (bot) => !DEPRECATED_REVIEW_BOTS.has(normaliseReviewBotLogin(bot)),
+  );
+  if (valuesEqual("reviewBots", stripped, theirs.value)) {
+    return { status: "inferred", write: theirs.value };
+  }
+
+  return result;
+}
 
 /**
  * Key-aware equality: set semantics for SET_KEYS, deep structural for everything
@@ -255,6 +289,9 @@ export function mergeConfig({
     const ours = inConfig ? config[key] : undefined;
     const theirs = detect(key);
     let result = classifyKey(key, base, ours, theirs);
+    if (key === "reviewBots") {
+      result = reconcileReviewBots(result, ours, theirs);
+    }
 
     // Per-key opt-in: an accepted drift becomes an applied write.
     if (result.status === "drift" && acceptSet.has(key)) {
