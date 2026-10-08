@@ -7,9 +7,14 @@ export const DEFAULT_CATALOGUE_URL =
 export const RHEGED_AGENT_SKILLS_PACKAGE = "@rheged-studio/agent-skills";
 
 /**
- * Bundles retired by rename; wipe on consumers but never re-install (A-1904).
+ * Bundles retired by rename (A-1904) or removed upstream with no replacement
+ * (`resolving-merge-conflicts`, mattpocock/skills 1.3.0 — A-2298); wipe on
+ * consumers but never re-install.
  */
-export const LEGACY_BUNDLE_NAMES = ["initialise-skills"];
+export const LEGACY_BUNDLE_NAMES = [
+  "initialise-skills",
+  "resolving-merge-conflicts",
+];
 
 /**
  * Command shims to remove alongside legacy bundles.

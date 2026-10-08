@@ -21,11 +21,11 @@ compatibility: >-
   for the bundled scripts (Node built-ins only — no npm deps, no build step). The
   Linear team name and workspace slug come from the Linear MCP server when
   available, else are flagged for manual input; everything else is still
-  detected. Reads each skill's config.example.json for its key set. The GitHub
-  App / token check is optional — it uses `gh` when authenticated, else falls
-  back to a reminder.
+  detected. Reads each skill's config.example.json for its key set. The Claude
+  token check is optional. It uses `gh` when authenticated; otherwise it asks the
+  operator to confirm the secret.
 metadata:
-  version: 0.12.0
+  version: 0.14.0
   author: Rob Easthope
 allowed-tools: Read, Bash(node:*), Bash(git:*), Bash(gh:*), Bash(npx:*), mcp__linear-server__list_teams, mcp__linear-server__get_team, mcp__linear-server__list_projects
 ---
@@ -173,15 +173,92 @@ Planning entry point after install: `/grill-me` (Matt productivity pack). Run
    the fleet convention, unless a tag/SHA was pinned). Skip either when an existing
    `.claude/skills.lock` already records it — its value is preserved.
 
-3. **Present the diff and confirm.** Show the human report (re-run without
+3. **Claude token check (A-670, A-1621).** Do this **before** the confirmation
+   gate, so any ask lands in the gate rather than after the write. The shared
+   Claude workflows (`reusable-claude.yml`, `reusable-claude-code-review.yml`)
+   authenticate with the **`CLAUDE_CODE_OAUTH_TOKEN`** Actions secret, not
+   `ANTHROPIC_API_KEY`, and fail on an empty token (A-646).
+
+   First, **look for estate Claude callers**: grep `.github/workflows/*.yml` and
+   `*.yaml` for `shared-workflows/.github/workflows/reusable-claude.yml` or
+   `reusable-claude-code-review.yml`. If neither appears and the operator doesn't
+   plan to add them, skip this step. A repo that runs no Claude workflows needs no
+   token.
+
+   Then **probe** (best-effort; skip silently if `gh` is unavailable or
+   unauthenticated). Run each listing and its name-check as **two separate
+   steps** and read each result. Do **not** collapse them into one `gh … | grep`
+   pipe: that reports a `gh` error and a genuine absence the same way, which hides
+   the can't-verify case.
+
+   ```bash
+   # 1 — the repo's Actions secrets; a non-zero exit is "can't verify"
+   gh secret list --repo <owner>/<repo> --app actions
+   # 2 — only if 1 succeeded: is CLAUDE_CODE_OAUTH_TOKEN in that output?
+   # 3 — only if it isn't, and the owner is an organisation: org secrets
+   #     (needs org-admin; an error here is "can't verify", not "absent")
+   gh secret list --org <org> --app actions
+   # 4 — only if 3 succeeded: is the name in that output, and with which
+   #     visibility (the third column: ALL, PRIVATE or SELECTED)?
+   # 5 — only for SELECTED: is this repo on the secret's list?
+   gh api --paginate orgs/<org>/actions/secrets/CLAUDE_CODE_OAUTH_TOKEN/repositories \
+     --jq '.repositories[].full_name'
+   # 6 — only if 5 succeeded: is <owner>/<repo> in that output?
+   ```
+
+   An org-level listing proves the secret exists, not that **this** repo receives
+   it, so check its visibility before reporting OK:
+
+   - `ALL` reaches every repo in the org.
+   - `PRIVATE` reaches private and internal repos only. Check this repo's
+     visibility (`gh repo view <owner>/<repo> --json visibility`); a public repo
+     doesn't receive it.
+   - `SELECTED` reaches only the repos on its list (step 5).
+
+   Outcomes:
+
+   - **present**: listed at repo level, or listed at org level with a visibility
+     that covers this repo. Report OK; nothing to do.
+   - **not shared with this repo**: an org secret exists, but its visibility
+     excludes this repo (a `SELECTED` list without it, or `PRIVATE` on a public
+     repo). In the step-4 gate, ask the operator to add this repo to the secret's
+     selected repositories (or widen its visibility), or to set a repo-level
+     secret as below.
+   - **absent** (every listing succeeded and none shows the name): in the step-4
+     gate, **ask the operator to add it**:
+     - at **organisation** level (preferred when they have org-admin and will run
+       Claude callers in several repos): `claude setup-token`, then
+       `gh secret set CLAUDE_CODE_OAUTH_TOKEN --org <org>`; or
+     - at **repository** level: `claude setup-token`, then
+       `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/<repo>`.
+
+     `gh secret set` prompts for the value, so the token never needs to enter the
+     chat. Never ask for it to be pasted, and never run either command yourself.
+     Also say that if the operator believes an org secret already exists, it may
+     have `visibility: selected` and leave this repo out. The fix then is adding
+     this repo to the secret's selected repositories.
+   - **can't verify** (a listing or the step-5 lookup errors, e.g. a `403`
+     without admin scope, or `gh` not installed): say "couldn't verify the token — please confirm
+     `CLAUDE_CODE_OAUTH_TOKEN` is set manually". A can't-tell is not an absence.
+
+   Never block or fail the run on absent, not-shared or can't-verify. Do **not** point the
+   operator at `/install-github-app` for the secret when estate callers exist.
+   Since Claude Code 2.1.187 its workflow and secret steps are optional, so it can
+   finish without writing a secret. It also tries to add Anthropic's boilerplate
+   workflows, which collide with the estate callers. Whether the Claude GitHub App
+   is installed is a separate check (A-621 / A-636) that this probe doesn't make.
+
+4. **Present the diff and confirm.** Show the human report (re-run without
    `--json`, or render the parsed JSON). Call out the `inferred` keys that will be
    written, the `drift` keys that will be kept, and the `needs-manual-input` keys.
+   Include the step-3 token outcome, with the add-the-secret ask when it was
+   **absent**.
    **For each `drift` key, ask whether to accept the detected value** (the per-key
    opt-in). Gather the accepted ones into an `acceptDrift` map keyed by skill name,
    e.g. `{ "changelog": ["issueKeys"] }`. This is the confirmation gate — do not
    write before it.
 
-4. **Write.** Re-run with `--write`, piping the gathered facts and drift opt-ins
+5. **Write.** Re-run with `--write`, piping the gathered facts and drift opt-ins
    as stdin JSON:
 
    ```bash
@@ -195,7 +272,7 @@ Planning entry point after install: `/grill-me` (Matt productivity pack). Run
    and the `lock` field (its `status` — `written`, `unchanged`, or `would-write`;
    `needsFacts: true` means `lockSource`/`lockRef` still need supplying).
 
-5. **Confirm idempotency.** Run the dry run once more; every key should now be
+6. **Confirm idempotency.** Run the dry run once more; every key should now be
    `unchanged` (apart from drifts you chose to keep and any still-missing manual
    values). When `preflight` is installed, `gitignore.status` should be `present`
    (or `negated`, if the repo deliberately un-ignores the file — also a stable
@@ -203,37 +280,6 @@ Planning entry point after install: `/grill-me` (Matt productivity pack). Run
    `gitignore` field to check. `lock.status` should be `unchanged`. This proves the
    configs, the `.gitignore`, and the `skills.lock` are stable and a future re-run
    is a no-op.
-
-6. **GitHub App & token check.** If this repo will run the shared Claude workflows
-   (`reusable-claude*.yml` and their caller stubs), the GitHub App must be installed
-   and the `CLAUDE_CODE_OAUTH_TOKEN` repository Actions secret set — the workflows
-   authenticate with it and fail on an empty token (A-646). The required secret is
-   **`CLAUDE_CODE_OAUTH_TOKEN`, not `ANTHROPIC_API_KEY`**.
-
-   Probe for the secret (best-effort — skip silently if `gh` is unavailable or
-   unauthenticated; a repo that runs no Claude workflows needs neither). Run the
-   listing and the name-check as **two separate steps** and read each result — do
-   **not** collapse them into one `gh … | grep` pipe, which would report the same
-   failure for a `gh` error and a genuine absence, hiding the can't-verify case:
-
-   ```bash
-   # step 1 — list the repo's Actions secrets; a non-zero exit here is "can't verify"
-   gh secret list --repo <owner>/<repo> --app actions
-   # step 2 — only when step 1 succeeded, check whether the name is in that output
-   ```
-
-   - **present** (step 1 succeeds and lists the name) → report OK; nothing to do.
-   - **absent** (step 1 succeeds but the name is missing) → **warn** and remind the
-     operator to run **`/install-github-app`**, which installs the App and adds the
-     secret.
-   - **can't verify** (step 1 itself errors — e.g. a `403` without repo-admin scope,
-     or `gh` not installed) → surface it as "couldn't verify the token — please
-     confirm `CLAUDE_CODE_OAUTH_TOKEN` is set manually", **never block or fail the
-     run**. A can't-tell is not an absence.
-
-   The App install itself can't be reliably introspected without the App's own token,
-   so the secret's presence is the reliable proxy; the `/install-github-app` reminder
-   covers installing the App and setting the secret together.
 
 7. **Multi-bundle repos — one manual step.** If this repo itself ships several
    independently-versioned skill bundles, `send-it`'s `bundleVersioning` is **not**
@@ -279,7 +325,7 @@ run the reconcile classifies your value as `drift` — a real value that differs
 what detection would produce — and **keeps it**, reporting both the kept value and
 the detected one (see the [status table](#how-it-decides-what-to-write) above). It is
 never silently overwritten: drift is only replaced if you explicitly opt in for that
-key (the per-key `acceptDrift` gate in step 3). So a deliberate manual edit and a
+key (the per-key `acceptDrift` gate in step 4). So a deliberate manual edit and a
 detected fact coexist — the tool reconciles the facts it can detect without clobbering
 the ones you set by hand.
 
@@ -341,7 +387,7 @@ key shows as `set to <value> (was <old>)`.
   placeholder, else it's refused. Rides the normal reconcile (dry-run first;
   `--write` to apply) and overrides detection for that key. Cannot be combined with
   `--review`. See [Setting an arbitrary value](#setting-an-arbitrary-value).
-- `--json` — emit the machine-readable report (parse this to drive steps 2–3, or
+- `--json` — emit the machine-readable report (parse this to drive steps 2–4, or
   to consume the `--review` snapshot); human text otherwise.
 - `--repo-root <path>` — the host repo the detectors scan (default: cwd).
 - `--skills-dir <path>` — where the sibling bundles live (default: auto-detected
@@ -390,9 +436,10 @@ so a fleet orchestrator can check any repo without changing directory. See
   sorted keys and no timestamp — so it only rewrites when a version actually changes,
   and a no-op run leaves it byte-identical. It preserves an existing lock's
   `source`/`ref` and never fabricates them.
-- **The GitHub App / token probe is read-only.** `gh secret list` returns secret
-  **names only, never values**, and the skill makes **no** GitHub writes of any kind
-  — on an absent or unverifiable secret it only ever prints a reminder.
+- **The Claude token probe is read-only.** `gh secret list` returns secret
+  **names only, never values**, and the skill makes **no** GitHub writes of any
+  kind. On an absent or unverifiable secret it only asks the operator to act, and
+  it never runs `claude setup-token` or `gh secret set` itself.
 
 ## Prerequisites
 
@@ -401,10 +448,10 @@ so a fleet orchestrator can check any repo without changing directory. See
   detection (both degrade to sensible fallbacks when absent).
 - The Linear MCP server for the team name / workspace slug (optional — those two
   keys are flagged for manual input without it).
-- The `gh` CLI authenticated with repo-admin scope enables the GitHub App / token
-  probe (step 6). Without that scope (or without `gh` at all) the probe can't read
-  the secret list, so it degrades to a "couldn't verify — confirm
-  `CLAUDE_CODE_OAUTH_TOKEN` manually" note — a can't-tell, never a failure. The
-  textual `/install-github-app` reminder is the separate **absent** outcome, emitted
-  only when the probe _succeeds_ and finds the secret genuinely missing. Either way
-  the skill still runs fully.
+- The `gh` CLI, authenticated with repo-admin scope, enables the Claude token
+  probe (step 3). Org-admin also lets it see organisation secrets. Without that
+  scope, or without `gh` at all, the probe can't read the secret list and gives a
+  "couldn't verify — confirm `CLAUDE_CODE_OAUTH_TOKEN` manually" note. That is a
+  can't-tell, never a failure. The repo-or-org add-the-secret ask is the separate
+  **absent** outcome, given only when the probe _succeeds_ and finds the secret
+  missing. Either way the skill still runs fully.

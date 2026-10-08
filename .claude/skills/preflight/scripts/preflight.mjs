@@ -15,7 +15,7 @@ import {
  * Change-gated, branch-scoped lint preflight (originally A-282).
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
@@ -285,6 +285,137 @@ export function buildSummary(
   };
 }
 
+/**
+ * Fail closed when the active Node major does not match `.nvmrc` / an exact
+ * `engines.node` pin (A-1702, ported from the A-1698 consumer patch). Stops
+ * `pnpm exec eslint` dying under the wrong Node and surfacing as an
+ * unparseable `failedLinters` row with `introducedCount: 0`. A `>=` / `^` / `~`
+ * engines range is not an exact-major pin and is ignored; a repo with neither
+ * an `.nvmrc` nor an exact pin is a no-op.
+ * @param {string} raw
+ * @returns {number | null}
+ */
+export function parseMajor(raw) {
+  const match = String(raw)
+    .trim()
+    .replace(/^v/, "")
+    .match(/^(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * `24.x` / `24` / `24.18.0` → 24. Ranges (`>=22`, `^24`, `22 || 24`) → null.
+ * @param {unknown} spec
+ * @returns {number | null}
+ */
+export function enginesPinnedMajor(spec) {
+  if (typeof spec !== "string") {
+    return null;
+  }
+
+  const trimmed = spec.trim();
+  if (/^[<=>^~]|\|\|/.test(trimmed)) {
+    return null;
+  }
+
+  const match = trimmed.match(/^(\d+)(?:\.x|\.\*|\.\d+)*$/i);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * @param {string} path
+ * @returns {string | null}
+ */
+function readIfPresent(path) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * The Node major the repo at `root` requires: an exact `engines.node` pin
+ * wins, else the `.nvmrc` major, else null (no requirement).
+ * @param {string} [root]
+ * @returns {number | null}
+ */
+export function requiredNodeMajor(root = ROOT) {
+  const nvmrc = readIfPresent(join(root, ".nvmrc"));
+  const nvmrcMajor = nvmrc === null ? null : parseMajor(nvmrc);
+
+  const pkgPath = join(root, "package.json");
+  const pkgText = readIfPresent(pkgPath);
+  const enginesMajor =
+    pkgText === null
+      ? null
+      : enginesPinnedMajor(parseManifest(pkgPath, pkgText).engines?.node);
+
+  return enginesMajor ?? nvmrcMajor;
+}
+
+/**
+ * Parse a `package.json`, failing with a clear message (not a stack trace)
+ * when it is invalid JSON or not a JSON object. An unreadable manifest is an
+ * error, never "no pin" — silently skipping the Node gate would hide it.
+ * @param {string} path
+ * @param {string} text
+ * @returns {{ engines?: { node?: string } }}
+ */
+function parseManifest(path, text) {
+  let manifest;
+  try {
+    manifest = JSON.parse(text);
+  } catch {
+    throw new Error(`preflight: ${path} contains invalid JSON`);
+  }
+
+  if (
+    manifest === null ||
+    typeof manifest !== "object" ||
+    Array.isArray(manifest)
+  ) {
+    throw new Error(`preflight: ${path} must contain a JSON object`);
+  }
+
+  return manifest;
+}
+
+function assertNodeMajor() {
+  let required;
+  try {
+    required = requiredNodeMajor();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+
+  if (required === null) {
+    return;
+  }
+
+  const active = parseMajor(process.version);
+  if (active === required) {
+    return;
+  }
+
+  console.error(
+    `preflight: active Node is ${process.version}; this repo requires ${required}.x (see .nvmrc and package.json engines.node).`,
+  );
+  console.error("Switch with: nvm use / fnm use / mise use — then re-run.");
+  console.error("Do not set npm_config_engine_strict=false.");
+  process.exit(1);
+}
+
 const USAGE = `preflight — change-gated, branch-scoped lint preflight
 
 Usage:
@@ -301,6 +432,8 @@ function main() {
     console.log(USAGE);
     return;
   }
+
+  assertNodeMajor();
 
   const scope = getBranchScope();
   const { baseBranch, blockOnWarnings } = resolveConfig();

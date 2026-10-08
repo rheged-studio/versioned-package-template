@@ -11,22 +11,17 @@ pushes the branch, opens or updates a pull request, transitions the linked
 Linear issues to **In Review**, and then drives that PR to merge-ready.
 
 It is a thin orchestrator: the commit step, the lint gate, the changelog authoring,
-the Linear transition, and the post-PR triage are delegated to the standalone
-[`commit`](../commit), [`preflight`](../preflight), [`changelog`](../changelog),
-[`linear-sync`](../linear-sync), and [`triage-pr`](../triage-pr) skills. send-it
+the PR body, the Linear transition, and the post-PR triage are delegated to the
+standalone [`commit`](../commit), [`preflight`](../preflight),
+[`changelog`](../changelog), [`pr`](../pr), [`linear-sync`](../linear-sync), and
+[`triage-pr`](../triage-pr) skills. send-it
 owns only the glue no sibling does — the branch guard, worktree resolution, the
 release-type decision (by category), the PR-title composition, push, and the PR.
 
-**From 0.8.0 the run continues past the open PR.** Its last step chains into
-`triage-pr`: the Phase A CI fix loop, the promote-on-proven-green draft→ready flip,
-then Phase B's review wait and verify-then-propose pass — halting at triage-pr's
-human envelope. So a default run is unattended for roughly 30 minutes and ends on a
-`[y/N]` prompt, not a report. The chain is **part of the run**: `--skip-triage` (or
-`triage: false`) restores the older "stop at the open PR" shape, but it is for the
-narrow cases where the chain cannot work — not a way to finish sooner. Reporting a
-draft PR URL as the final outcome without printing
-`ℹ️ triage chain skipped …` and a reason is a failed run (A-1645). send-it never
-arms auto-merge; merging stays a human action.
+**From 0.8.0 the run continues past the open PR** into [`triage-pr`](../triage-pr)
+(Step 11). The chain is **part of the run** — see [`SKILL.md`](SKILL.md) and
+[`triage-pr`](../triage-pr/SKILL.md). `--skip-triage` (or `triage: false`) stops at
+the open PR only when the chain cannot work; say why. send-it never arms auto-merge.
 
 ## Install
 
@@ -40,12 +35,12 @@ npx skills add https://github.com/rheged-studio/agent-skills --skill send-it --a
 — the install should live in the consumer repo.
 
 **Install the sibling skills too.** send-it delegates to `commit`, `preflight`,
-`changelog`, `linear-sync`, and `triage-pr`; install them alongside it (the
-changelog, Linear, and triage steps no-op gracefully if a sibling is absent, but the
-flow assumes they are present):
+`changelog`, `pr`, `linear-sync`, and `triage-pr`; install them alongside it (the
+changelog, PR-body, Linear, and triage steps degrade gracefully if a sibling is
+absent, but the flow assumes they are present):
 
 ```bash
-npx skills add https://github.com/rheged-studio/agent-skills --skill commit --skill preflight --skill changelog --skill linear-sync --skill triage-pr --agent claude-code --agent cursor --copy
+npx skills add https://github.com/rheged-studio/agent-skills --skill commit --skill preflight --skill changelog --skill pr --skill linear-sync --skill triage-pr --agent claude-code --agent cursor --copy
 ```
 
 ## Configure
@@ -63,7 +58,7 @@ and fill it in by hand.
 | `shippableManifestKeys` _(advisory)_ | `package.json` keys that form the published-`files` surface — same advisory role as `shippablePaths`, no longer a release gate. | `["name", "version", "files", "publishConfig"]` |
 | `bundleVersioning` _(optional)_ | For repos that ship many independently-versioned skill bundles. An object `{ root, manifest, skillFile }` that turns on the per-bundle version-bump check: when a bundle's content changed but its version didn't, send-it offers to bump its `manifest` `version` + `skillFile` `metadata.version` in lockstep. **Omit it in single-package repos** — the check no-ops. | unset (disabled) |
 | `changelog` _(optional)_ | Whether to author a dated `changelog/` entry at all. Set `false` only for repos with no changelog flow (no `changelog/` dir, no `changelog` skill). | `true` |
-| `triage` _(omit or `true` by default)_ | Whether the run chains into [`triage-pr`](../triage-pr) once the PR is open — the CI fix loop, the promote-on-proven-green flip, then Phase B up to triage-pr's human envelope. The **key** may be omitted (defaults to `true`); the **step** is not optional on a default run. Set `false` only to deliberately stop at the open PR, or in repos where `triage-pr` isn't installed. Also worth setting `false` where CI is gated on `draft == false`: send-it opens drafts, so no check ever registers and the chain waits out its cold-start window each run before degrading to `--no-promote`. | `true` |
+| `triage` _(omit or `true` by default)_ | Chain into [`triage-pr`](../triage-pr) after the PR opens (Step 11). Set `false` to stop at the open PR, or where `triage-pr` is not installed / CI never registers on drafts (`draft == false` gating). | `true` |
 
 **Release-type is decided by category, not path (A-598).** send-it reads the
 Conventional-Commit type of the work it committed: `feat`/`fix`/`perf` — or any
@@ -94,6 +89,10 @@ which send-it's delegated steps read.
 - `triage-pr` for the final chain — **required for the default pipeline**. A missing
   install only warns and the run finishes at the open PR; that soft-skip is a
   degraded outcome, not a successful finish.
+- The [`pr`](../pr) skill for the PR body (Step 9). send-it hands it the release
+  note and the Related Issues, and carries any `<!-- pr:keep -->` region across
+  when it rewrites the body on a re-run. Without `pr`, send-it writes a minimal
+  fallback body (Summary, release note, keep region, Related Issues).
 
 ## What it does not do
 

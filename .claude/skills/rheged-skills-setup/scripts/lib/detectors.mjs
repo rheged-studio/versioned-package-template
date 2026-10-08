@@ -20,10 +20,21 @@ import { join } from "node:path";
  * Fixed defaults that don't depend on the host repo.
  */
 const SHIPPABLE_MANIFEST_KEYS = ["name", "version", "files", "publishConfig"];
-const REVIEW_BOTS = ["claude", "cursor", "coderabbitai"];
+const REVIEW_BOTS = ["claude", "coderabbitai"];
 const MAX_CI_ROUNDS = 5;
-const REVIEW_IDLE_MINUTES = 5;
+const REVIEW_IDLE_MINUTES = 10;
+const MAX_REVIEW_ROUNDS = 2;
 const REVIEW_WAIT_MAX_MINUTES = 20;
+// The estate Claude review reusable workflow (rheged-studio/shared-workflows).
+// A repo calling it gets a `<caller job id> / claude-review` check run on every
+// reviewed head, posted by GitHub Actions (A-2453).
+// Only the estate's own shared-workflows repo counts — a same-named reusable
+// workflow elsewhere need not post a `claude-review` check. The pre-rename
+// `acme-skunkworks` owner still resolves via GitHub's redirect, and some callers
+// have not been re-pointed yet.
+const CLAUDE_REVIEW_REUSABLE =
+  /^\s*uses:\s*["']?(?:rheged-studio|acme-skunkworks)\/shared-workflows\/\.github\/workflows\/reusable-claude-code-review\.ya?ml@/;
+const CLAUDE_REVIEW_PRODUCER = "github-actions";
 
 /**
  * Detect the published surface from the root package.json `files` field (the
@@ -87,6 +98,84 @@ function detectBundleRoot(repoRoot) {
 }
 
 /**
+ * Find the job id of the estate Claude review caller — the job in
+ * `.github/workflows/*.yml|yaml` whose `uses:` is shared-workflows'
+ * `reusable-claude-code-review.yml`. The caller job id is the leading segment of
+ * the check-run name GitHub posts (`<job id> / claude-review`), so it is what
+ * triage-pr's `reviewBotChecks` must name. A line scan rather than a YAML parse:
+ * the bundle is zero-dependency, and a caller is a plain two-level `jobs:` entry.
+ * @param {string} repoRoot
+ * @returns {string | null} the caller job id, or null when no caller exists
+ */
+export function detectClaudeReviewCallerJob(repoRoot) {
+  const directory = join(repoRoot, ".github", "workflows");
+  let entries;
+  try {
+    entries = readdirSync(directory).toSorted();
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (!/\.ya?ml$/.test(entry)) {
+      continue;
+    }
+
+    let text;
+    try {
+      text = readFileSync(join(directory, entry), "utf8");
+    } catch {
+      continue;
+    }
+
+    let inJobs = false;
+    let jobIndent = null;
+    let jobId = null;
+    // Indentation of the current job's direct fields (`uses:`, `secrets:` …).
+    // A `uses:` line any deeper — inside a `run: |` block, say — is not the
+    // job's own call, so it never matches.
+    let fieldIndent = null;
+    for (const line of text.split(/\r?\n/)) {
+      if (/^\s*(#|$)/.test(line)) {
+        continue;
+      }
+
+      const indent = line.length - line.trimStart().length;
+      if (indent === 0) {
+        inJobs = /^jobs:\s*(#.*)?$/.test(line);
+        jobIndent = null;
+        jobId = null;
+        fieldIndent = null;
+        continue;
+      }
+
+      if (!inJobs) {
+        continue;
+      }
+
+      jobIndent ??= indent;
+      const key = /^\s*["']?([\w-]+)["']?:\s*(#.*)?$/.exec(line);
+      if (indent === jobIndent && key) {
+        jobId = key[1];
+        fieldIndent = null;
+        continue;
+      }
+
+      if (!jobId || indent <= jobIndent) {
+        continue;
+      }
+
+      fieldIndent ??= indent;
+      if (indent === fieldIndent && CLAUDE_REVIEW_REUSABLE.test(line)) {
+        return jobId;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Build a memoised `detect(key)` for a host repo.
  * @param {object} params
  * @param {string} params.repoRoot host repo root the detectors scan
@@ -138,12 +227,9 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
     // No repo signal; emit triage-pr's default-on impact gate (never null) so it isn't flagged needs-manual-input — a later edit reads as drift and is kept.
     deferNonBlocking: () => ({ value: true }),
     fallbackPackage: () => ({ value: "infrastructure" }),
-    // triage-pr follow-up capture: label stays an optional empty default; project
-    // is the fallback catch-all when inherit from the PR's Linear issue fails
-    // (A-1541). Required when capture is on (linearTeamName set) — prefer facts,
-    // else flag needs-manual-input rather than writing a confident empty
-    // "no project".
-    followUpLabel: () => ({ value: "" }),
+    // triage-pr follow-up capture: estate default label matches config.example.json
+    // so a configured "follow-up" is not wiped when it equals the example (A-2054).
+    followUpLabel: () => ({ value: "follow-up" }),
     followUpProject: () => {
       const fromFacts = linearFacts.followUpProject;
       if (typeof fromFacts === "string" && fromFacts.trim()) {
@@ -157,9 +243,9 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
       return { value: "" };
     },
     followUpState: () => ({ value: "Backlog" }),
-    // No repo signal; emit triage-pr's default-on human envelope (never null) so it
-    // isn't flagged needs-manual-input — a later edit reads as drift and is kept.
-    humanEnvelope: () => ({ value: true }),
+    // No repo signal; emit triage-pr's unattended default (never null) so it isn't
+    // flagged needs-manual-input — a later edit reads as drift and is kept.
+    humanEnvelope: () => ({ value: false }),
     issueKeys: () => {
       const fromFacts = linearFacts.issueKeys;
       if (Array.isArray(fromFacts) && fromFacts.length > 0) {
@@ -179,6 +265,7 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
     // tooling treats as the base, so a master/develop repo cleans up correctly.
     mainBranch: () => ({ value: detect("baseBranch").value }),
     maxCiRounds: () => ({ value: MAX_CI_ROUNDS }),
+    maxReviewRounds: () => ({ value: MAX_REVIEW_ROUNDS }),
     // Declared workspace roots → value; no manifest and none of the default
     // candidates on disk → null ("couldn't detect"), so the merge keeps the
     // existing value / flags needs-manual-input rather than writing a guess.
@@ -193,6 +280,19 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
     protectedBranches: () => ({ value: [detect("baseBranch").value] }),
     // No repo signal; emit triage-pr's own default (never null) so it isn't flagged needs-manual-input — a later edit reads as drift and is kept.
     replyOnAccept: () => ({ value: true }),
+    // Map `claude` to the estate Claude review check when the repo calls the
+    // shared reusable workflow, so a clean review (no PR review, no threads)
+    // still settles on the terminal check rather than waiting out the review cap
+    // (A-2453). Pinned to the GitHub Actions producer (A-2328). No caller → `{}`
+    // (never null), and a later edit reads as drift and is kept.
+    reviewBotChecks: () => {
+      const job = detectClaudeReviewCallerJob(repoRoot);
+      return {
+        value: job
+          ? { claude: { name: job, producer: CLAUDE_REVIEW_PRODUCER } }
+          : {},
+      };
+    },
     reviewBots: () => ({ value: [...REVIEW_BOTS] }),
     // Hybrid review-settle knobs (A-1179) — structural defaults, never null.
     reviewIdleMinutes: () => ({ value: REVIEW_IDLE_MINUTES }),

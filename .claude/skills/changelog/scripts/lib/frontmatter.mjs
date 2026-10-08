@@ -314,6 +314,11 @@ function reparsesAsNonString(string_) {
     return true;
   }
 
+  // Bare tokens like `6e95791` parse as floats in full YAML; quote on emit.
+  if (/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(string_)) {
+    return true;
+  }
+
   return /^\d{4}-\d{2}-\d{2}/.test(string_);
 }
 
