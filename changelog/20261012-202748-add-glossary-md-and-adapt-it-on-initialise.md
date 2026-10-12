@@ -2,10 +2,10 @@
 title: Add GLOSSARY.md and adapt it on initialise
 release_note: The template now ships a GLOSSARY.md, and initialise-versioned-repo rewrites its header and strips the template-only terms in a spawned repo.
 created_at: "2026-10-12T20:27:48Z"
-merged_at:
+merged_at: "2026-10-12T20:55:04Z"
 branch: a-2448-write-glossarymd-versioned-package-template
-pr:
-commit:
+pr: 53
+commit: a07b2e8
 author: rob@rheged.studio
 co_authors: []
 category: feature
@@ -13,9 +13,9 @@ breaking: false
 issues:
   - A-2448
 stats:
-  files_changed:
-  loc_added:
-  loc_removed:
+  files_changed: 19
+  loc_added: 547
+  loc_removed: 31
 ---
 
 ## Added
