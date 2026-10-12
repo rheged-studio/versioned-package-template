@@ -1,6 +1,6 @@
 {
   "name": "@rheged-studio/versioned-package-template",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": true,
   "description": "Template repository for Rheged Studio versioned, content-only (non-npm) packages.",
   "keywords": [
