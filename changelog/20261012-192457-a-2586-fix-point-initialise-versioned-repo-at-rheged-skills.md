@@ -1,21 +1,21 @@
 ---
 title: Point initialise-versioned-repo at rheged-skills-setup
-release_note: "Spawned repos now wrap rheged-skills-setup after Use this template, instead of the deleted initialise-skills bundle."
+release_note: Spawned repos now wrap rheged-skills-setup after Use this template, instead of the deleted initialise-skills bundle.
 created_at: "2026-10-12T19:24:57Z"
-merged_at:
+merged_at: "2026-10-12T19:37:29Z"
 branch: a-2586-fix-point-initialise-versioned-repo-at-rheged-skills-setup
-pr:
-commit:
-author: "rob@rheged.studio"
+pr: 52
+commit: f4ef7f6
+author: rob@rheged.studio
 co_authors: []
 category: fix
 breaking: false
 issues:
   - A-2586
 stats:
-  files_changed:
-  loc_added:
-  loc_removed:
+  files_changed: 18
+  loc_added: 69
+  loc_removed: 45
 ---
 
 ## Fixed
