@@ -40,7 +40,9 @@ changelog-poisoning fix), re-seeds `.release-please-manifest.json` to the starti
 repo's own facts (`gh repo view`), **pulls the shared skills** from
 `rheged-studio/agent-skills` into both agent trees (`--copy`), and **clears the
 template-seed skill-config gitignore** (A-812) so resolved per-skill `config.json`
-files are trackable and committed in the consumer.
+files are trackable and committed in the consumer. It also **adapts the inherited
+`GLOSSARY.md`**: the context header is rewritten from the repo's facts and the
+template-only block is stripped (A-2448).
 
 **GitHub rulesets (via `gh api`):** create-or-updates the `Require GO/NO GO gate`
 required-check ruleset (pinned to the GitHub Actions integration) **with the

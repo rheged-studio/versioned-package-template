@@ -4,6 +4,7 @@
 // no gh — asserting the transforms and, crucially, their idempotent no-op paths.
 
 import { planChangelogReset } from "../../.claude/skills/initialise-versioned-repo/scripts/lib/changelog-reset.mjs";
+import { planGlossaryAdapt } from "../../.claude/skills/initialise-versioned-repo/scripts/lib/glossary.mjs";
 import { reseedManifest } from "../../.claude/skills/initialise-versioned-repo/scripts/lib/manifest.mjs";
 import {
   applyIdentity,
@@ -261,5 +262,96 @@ describe("planSkillConfigIgnoreStrip", () => {
     expect(plan.changed).toBe(false);
     expect(plan.text).toBe(raw);
     expect(plan.removed).toEqual([]);
+  });
+});
+
+describe("glossary", () => {
+  const identity = { description: "An example spawned repo.", repo: "example" };
+  const template = [
+    "<!-- init:context -->",
+    "",
+    "# versioned-package-template",
+    "",
+    "A template.",
+    "",
+    "<!-- /init:context -->",
+    "",
+    "## Language",
+    "",
+    "**Kept**:",
+    "Inherited term.",
+    "",
+    "<!-- init:template-only -->",
+    "",
+    "**Spawn**:",
+    "Template-only term.",
+    "",
+    "<!-- /init:template-only -->",
+    "",
+    "**Also kept**:",
+    "Another inherited term.",
+    "",
+  ].join("\n");
+
+  it("rewrites the context block with the repo name and description", () => {
+    const result = planGlossaryAdapt(template, identity);
+    expect(result.changed).toBe(true);
+    expect(
+      result.text.startsWith(
+        "# example\n\nAn example spawned repo.\n\n## Language",
+      ),
+    ).toBe(true);
+    expect(result.text).not.toContain("versioned-package-template");
+    expect(result.text).not.toContain("init:context");
+  });
+
+  it("falls back to a prompt line when the description is empty", () => {
+    const result = planGlossaryAdapt(template, {
+      description: "",
+      repo: "example",
+    });
+    expect(result.text).toContain(
+      "# example\n\nDescribe what example is and why it exists.",
+    );
+  });
+
+  it("removes the template-only block and collapses the blank lines", () => {
+    const { text } = planGlossaryAdapt(template, identity);
+    expect(text).not.toContain("Spawn");
+    expect(text).not.toContain("init:template-only");
+    expect(text).toContain("Inherited term.\n\n**Also kept**:");
+    expect(text).not.toMatch(/\n{3,}/);
+  });
+
+  it("is a no-op on a second pass (idempotent)", () => {
+    const first = planGlossaryAdapt(template, identity);
+    const second = planGlossaryAdapt(first.text, identity);
+    expect(second.changed).toBe(false);
+    expect(second.text).toBe(first.text);
+  });
+
+  it("returns text without markers unchanged", () => {
+    const plain = "# Mine\n\nA description.\n\n## Language\n";
+    expect(planGlossaryAdapt(plain, identity)).toEqual({
+      changed: false,
+      text: plain,
+    });
+  });
+
+  it("preserves the trailing newline, or its absence", () => {
+    const body = "<!-- init:template-only -->\nx\n<!-- /init:template-only -->";
+    const kept = "**Kept**:\nA term.";
+    expect(planGlossaryAdapt(`${kept}\n\n${body}\n`, identity).text).toBe(
+      `${kept}\n`,
+    );
+    expect(planGlossaryAdapt(`${kept}\n\n${body}`, identity).text).toBe(kept);
+  });
+
+  it("leaves `$` sequences in the description literal", () => {
+    const result = planGlossaryAdapt(template, {
+      description: "Costs $& and $1.",
+      repo: "example",
+    });
+    expect(result.text).toContain("Costs $& and $1.");
   });
 });
