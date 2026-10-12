@@ -30,7 +30,7 @@ This repo is both the template and its own reference deploy target. There are tw
 After "Use this template", in the new repo:
 
 > **Run the `initialise-versioned-repo` skill first.** It automates the setup half of steps 1–2
-> (in-repo file edits, **shared-skills pull** via `npx skills add … --copy`, `initialise-skills`,
+> (in-repo file edits, **shared-skills pull** via `npx skills add … --copy`, `rheged-skills-setup`,
 > and the rulesets), all idempotent and dry-run-first, and verifies-and-reports the org / cross-repo
 > steps 3–4 it deliberately cannot take on itself. There is **no `src/` to author** — this is a
 > content-only deploy target. The numbered steps below are the reference for what it does — walk

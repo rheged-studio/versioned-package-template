@@ -26,6 +26,7 @@ export const SHARED_SKILLS = Object.freeze([
   "rheged-skills-setup",
   "linear-sync",
   "preflight",
+  "pr",
   "release-status",
   "send-it",
   "triage-pr",

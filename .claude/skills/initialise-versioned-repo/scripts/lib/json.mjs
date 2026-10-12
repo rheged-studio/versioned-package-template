@@ -7,7 +7,7 @@
 // than letting `JSON.stringify` reflow the whole file to its own defaults.
 //
 // Zero-deps: plain JSON + string work, no formatter dependency. This is a
-// deliberately separate copy from the initialise-skills bundle's jsonio.mjs —
+// deliberately separate copy from the rheged-skills-setup bundle's jsonio.mjs —
 // each skill bundle is independently vendored, so they must not import one
 // another's internals.
 
