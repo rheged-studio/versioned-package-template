@@ -16,7 +16,7 @@
     "implement": null,
     "implement-spec": null,
     "improve-codebase-architecture": null,
-    "initialise-versioned-repo": "0.1.1",
+    "initialise-versioned-repo": "0.2.0",
     "linear-sync": "0.3.5",
     "pr": "0.1.0",
     "preflight": "0.4.1",

@@ -22,9 +22,16 @@ export const MANUAL_REMINDERS = [
       "Verify org-wide CLAUDE_CODE_OAUTH_TOKEN + the Claude GitHub App are inherited; add the per-repo secret + App grant if not — README.md#claude-review-prerequisites.",
     title: "Verify Claude review prerequisites",
   },
+  {
+    detail:
+      "Add this repo's own domain terms to GLOSSARY.md (the domain-modeling skill's GLOSSARY-FORMAT). The inherited release-shell terms are kept; the template-only ones are gone.",
+    title: "Extend GLOSSARY.md with the repo's domain terms",
+  },
 ];
 
 const GLYPH = {
+  absent: "•",
+  adapted: "✔",
   "already-customised": "•",
   changed: "✔",
   clean: "•",
@@ -37,6 +44,7 @@ const GLYPH = {
   stripped: "✔",
   unchanged: "•",
   updated: "✔",
+  "would-adapt": "→",
   "would-change": "→",
   "would-create": "→",
   "would-reset": "→",
@@ -90,6 +98,10 @@ export function formatHuman(report) {
         ops.files.packageIdentity.name,
       ),
     );
+    if (ops.files.glossary) {
+      out.push(line("GLOSSARY.md", ops.files.glossary.status));
+    }
+
     out.push(
       line(
         "repo-config.yaml",

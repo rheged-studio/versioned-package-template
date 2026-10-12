@@ -26,7 +26,7 @@ compatibility: >-
   (integration_id 15368, the road-runner-bot App id 2195582) are specific to that
   template's release shell.
 metadata:
-  version: 0.1.2
+  version: 0.2.0
   author: Rob Easthope
 allowed-tools: Read, Bash(node:*), Bash(git:*), Bash(gh:*), Bash(pnpm:*), Bash(npx:*), mcp__linear-server__list_teams, mcp__linear-server__get_team
 ---
@@ -83,6 +83,12 @@ to do is a clean no-op.
 - **Reconcile `infrastructure/repo-config.yaml`** — `defaultBranch`, preserving
   comments and quoting. (`nodeVersionFile` is the constant `.nvmrc`; there is no
   `npmScope` on a deploy target.)
+- **Adapt the inherited `GLOSSARY.md`** (A-2448) — rewrite its
+  `<!-- init:context -->` header to `# <repo>` plus the repo description, and strip
+  the `<!-- init:template-only -->` block (the spawn / placeholder-identity terms
+  that only make sense in the template). Inherited release-shell terms are kept
+  untouched. Idempotent: the markers are consumed, so a second pass is a no-op;
+  absent when the repo has no `GLOSSARY.md`.
 - **Pull the shared skills** — `npx skills add` from
   `rheged-studio/agent-skills` for the locked set (`changelog`, `cleanup-repo`,
   `commit`, `rheged-skills-setup`, `linear-sync`, `preflight`, `pr`,
@@ -157,7 +163,7 @@ per-repo bot install to report:
 
 3. **Present the diff and confirm the file edits.** Show the dry-run report. Call
    out the changelog entries to be deleted, the manifest re-seed, the identity
-   rewrite, and the **pending shared-skills pull**. **This is the confirmation gate
+   rewrite, the **GLOSSARY.md adapt**, and the **pending shared-skills pull**. **This is the confirmation gate
    for the working-tree edits** — do not write before it.
 
 4. **Apply the file edits** (including the skills pull), piping the gathered facts
@@ -168,11 +174,23 @@ per-repo bot install to report:
      | node .claude/skills/initialise-versioned-repo/scripts/initialise-versioned-repo.mjs --write --files-only --json
    ```
 
-   `--files-only` runs the changelog/manifest/identity/repo-config edits **and**
-   `npx skills add … --copy` for the locked shared set. Needs network. Confirm
+   `--files-only` runs the changelog/manifest/identity/glossary/repo-config edits
+   **and** `npx skills add … --copy` for the locked shared set. Needs network. Confirm
    `ops.files.skillsPull.status` is `pulled` before continuing.
 
-5. **Generate the skill configs.** Run the **`rheged-skills-setup`** skill
+5. **Review GLOSSARY.md as best you can.** The script only does the mechanical
+   adapt; the judgement is yours. Read the adapted `GLOSSARY.md` and:
+   - check each kept inherited term still applies to this repo, and drop any that
+     do not (for example a repo that does not use Clacks or the road-runner-bot);
+   - draft a few of the repo's own domain terms from the facts gathered in step 2
+     and its `README.md`, in the `domain-modeling` `GLOSSARY-FORMAT.md` style
+     (bold term, one-sentence definition, optional `_Avoid_`);
+   - show the user the diff and confirm before writing;
+   - if there is too little to go on (a freshly spawned, empty repo), leave the file
+     as adapted and rely on the manual reminder;
+   - never reintroduce the template-only terms.
+
+6. **Generate the skill configs.** Run the **`rheged-skills-setup`** skill
    end-to-end (its own dry-run → confirm → write → idempotency flow, including the
    Linear-facts step via the Linear MCP). Do not reimplement it — invoke it. Must
    run **after** step 4 so configs match the just-pulled bundles and the
@@ -181,7 +199,7 @@ per-repo bot install to report:
    files are **committed** in the consumer (agent-skills contract) — they are no
    longer gitignored after step 4.
 
-6. **Confirm and apply the GitHub rulesets.** These need repo-admin and change
+7. **Confirm and apply the GitHub rulesets.** These need repo-admin and change
    server-side state, so confirm separately, then:
 
    ```bash
@@ -192,13 +210,14 @@ per-repo bot install to report:
    present (the GO/NO GO ruleset with the bot bypass, the Trunk bypass, the path
    guard).
 
-7. **Report the manual next steps.** Surface the `reminders` from the report — the
-   orchestrator `kind: deploy` matrix registration and the Claude review
-   prerequisites — each cross-linking its `README.md#setup` subsection. The repo is
+8. **Report the manual next steps.** Surface the `reminders` from the report — the
+   orchestrator `kind: deploy` matrix registration, the Claude review
+   prerequisites, and extending `GLOSSARY.md` with the repo's own terms — each
+   cross-linking its `README.md#setup` subsection. The repo is
    not "done" until these are handled. (road-runner-bot is installed org-wide, so
    there is no per-repo bot install to surface.)
 
-8. **Confirm idempotency.** Re-run the dry run; every file/GitHub op should now
+9. **Confirm idempotency.** Re-run the dry run; every file/GitHub op should now
    report `unchanged` / `present` / `already-customised` (apart from the manual
    steps). The skills pull still reports `pending` on dry-run (it does not probe
    lock hashes) — a second `--write` re-pulls safely.
@@ -225,7 +244,8 @@ per-repo bot install to report:
 - **Idempotent.** Every op probes current state and no-ops when already done: the
   changelog reset is clean once only `README.md` remains; the manifest re-seed is a
   no-op when `"."` already matches; the identity rewrite is skipped once the name is
-  no longer the placeholder; the ruleset calls skip (or bypass-merge) when already
+  no longer the placeholder; the GLOSSARY.md adapt is clean once its markers are
+  gone (and never re-adds the template-only block); the ruleset calls skip (or bypass-merge) when already
   present. The skills pull is safe to re-run (`skills add --copy` refreshes in
   place) and never overwrites this scaffolder.
 - **Only the deterministic GitHub rulesets are automated.** The orchestrator matrix
