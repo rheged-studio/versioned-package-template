@@ -1,6 +1,6 @@
 {
   "name": "@rheged-studio/skill-triage-pr",
-  "version": "0.17.2",
+  "version": "0.19.0",
   "private": true,
   "description": "Agent skill: take a pull request from draft with failing CI to merge-ready — fix in-scope CI failures, then Phase B AI review dispositions (accept / decline / create a follow-up issue) — behind a structured Questions UI human envelope when humanEnvelope is true, or applied unattended with the plan posted on the PR when false.",
   "keywords": [

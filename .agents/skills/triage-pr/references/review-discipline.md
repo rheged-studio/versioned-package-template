@@ -59,6 +59,7 @@ regression.
 
    The reply is the durable, per-finding audit trail reviewers and humans skimming
    the PR rely on; a silently-resolved accept loses it.
+
 6. **IMPLEMENT.** Apply accepted findings **one at a time**, verifying each before
    the next — only after envelope approval on the `humanEnvelope: true` path, or
    immediately after the plan comment on the unattended path. Batching changes
@@ -121,96 +122,27 @@ always applies the rubric above.
 ## Lint surfaces are a developer decision
 
 Changing how a linter is configured — or telling it to look away — is a **developer
-decision**, never the agent's. It sits beside **Never greenwash** as the pair:
-weakening a gate purely to make a check pass is a **hard ban**; anything else that
-touches a lint surface is the **human-gated grey zone**. A plausible, narrowly scoped
-tweak is exactly the case this covers: it may well be right, but it is not yours to
-land.
+decision**, never the agent's. The full rule is shared with `preflight` and `commit`
+and lives in [`lint-surfaces.md`](lint-surfaces.md): the surfaces covered (config
+files, ignore / disable directives, bulk-suppression files, CI lint-step knobs), the
+preference order (fix the code → propose the change in the shared config package →
+local override or ignore only with sign-off), the four points to report, and the
+carve-out for repairing what the developer already wrote. Here it sits beside
+**Never greenwash** as the pair: weakening a gate purely to make a check pass is a
+hard ban; anything else that touches a lint surface is classified **gated** (Step 3
+in Phase A, Step 9 in Phase B).
 
-Two reasons it stays with the human:
-
-- **The shared-config model.** Estate lint rules live in packages
-  (`@rheged-studio/eslint-config`, `@rheged-studio/markdownlint-config`, …). A
-  per-repo override is usually the wrong place for a rule change — it forks the
-  estate's lint behaviour one repo at a time.
-- **Cumulative surface degradation.** Every ignore line and every loosened local rule
-  permanently weakens the check for that file or path. CI goes green; the underlying
-  problem stays. One at a time it always looks reasonable; the sum does not.
-
-### Surfaces covered
-
-**Lint / format / static-analysis config:**
-
-- `eslint.config.*`, `.eslintrc*`
-- `.markdownlint*` (`.markdownlint.jsonc`, `.markdownlint-cli2.*`)
-- `.yamllint*`
-- `.prettierrc*`, `.prettierignore`
-- `.shellcheckrc`
-- actionlint config (`.github/actionlint.yaml`)
-- repo **extends** of shared config packages (swapping, narrowing, or overriding what
-  the shared config sets)
-- CI lint-step knobs that change rule severity (`--max-warnings`, `continue-on-error`
-  on a lint step, a severity flag on the linter invocation)
-
-> **The workflow ban is not relaxed by this gate.** Those CI lint-step knobs live in
-> `.github/workflows/*`, which **Never greenwash** forbids the agent from editing
-> **at all**. Listing them here means such a failure is _reported_ to the developer
-> like any other gated item — it does **not** open a sign-off path for the agent to
-> edit a workflow. Where the two rules overlap, the stricter one wins: the agent
-> never touches it, and the developer makes the change themselves.
-
-**Ignore / disable directives** — inline, block, or file-level:
-
-- `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`
-- `markdownlint-disable` / `markdownlint-disable-next-line`
-- `# yamllint disable` / `disable-line`
-- `prettier-ignore`
-- `shellcheck disable=`
-- per-linter file-level ignore lists (`ignores:` / `ignorePatterns` entries,
-  `.eslintignore`, `.prettierignore`, `.markdownlintignore`)
-- ESLint bulk-suppression files — `eslint-suppressions.json`, or whatever file
-  `--suppressions-location` points at. Adding or widening a suppression there is an
-  ignore by another name; pruning entries the code no longer needs (ESLint's
-  `--prune-suppressions`) is part of fixing the code, not a gated change
-
-### Preference order
-
-1. **Fix the offending code.** Nearly always available, and it's the only option that
-   leaves the lint surface intact.
-2. **Propose the rule change upstream** in the shared config package, for the
-   developer to take forward. Report it — do not open it yourself as part of this run.
-3. **Local override or ignore** — only with the developer's explicit sign-off, and
-   only after 1 and 2 have been ruled out.
-
-### What to report
-
-A gated item is reported, never applied. Give the developer enough to decide without
-re-deriving your analysis:
-
-- the **file** (and rule) the change would touch;
-- the **change you would have made** — the exact config edit or ignore directive;
-- **why the code fix wasn't available** — this is the part that justifies the gate;
-- the **preferred alternative** — the code fix you'd write, or the shared-config change
-  you'd propose.
+### Where triage-pr reports it
 
 Report at the natural stopping points only (Phase A's Step 6 early stop, the Step 10
 envelope as a `[gated]` plan item, or the Step 13 report) — never as a mid-loop prompt.
 
 For a gated **review finding** on the unattended path (`humanEnvelope: false` /
-`--auto-apply`) there is no envelope to sign it off: file the four points above as a
+`--auto-apply`) there is no envelope to sign it off: file the four points as a
 Linear follow-up (Urgent when critical/blocking) and, once it is created, resolve the
 thread with the `follow-up` reply. When Linear capture is disabled or fails closed,
 leave the thread unresolved and report it as an outstanding gated item. It is still
 never applied.
-
-### Carve-out — repairing what the developer already wrote
-
-The gate targets the agent **introducing** a lint-surface change. When the PR's own
-diff already contains a developer-authored lint config or ignore change, you may
-repair a genuine error in it — a syntax or schema error breaking the lint job, a
-malformed rule id, a misspelt glob that matches nothing. What you may **never** do,
-under this carve-out or any other, is loosen a rule or widen an ignore beyond what the
-developer wrote.
 
 ## Symmetric reply + resolve — recorded decisions (A-410)
 
@@ -285,11 +217,11 @@ implies success without fresh verification breaks this rule.
 
 Proving commands by claim:
 
-| Claim | Proof |
-| --- | --- |
-| Lint clean | the lint command's output showing zero errors |
-| Tests pass | the test command's output showing zero failures |
-| Build succeeds | the build command exiting `0` |
-| Manifest valid | `npx --yes skills-ref@0.1.5 validate ./skills/<name>` exiting `0` |
-| CI green | every required context from the base branch's rules present and successful on the head commit (`gh pr checks <pr> --required` is the quick view; a missing required check is pending; non-required checks are informational) |
-| Bug fixed | the original failing symptom now passing |
+| Claim          | Proof                                                                                                                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lint clean     | the lint command's output showing zero errors                                                                                                                                                                                |
+| Tests pass     | the test command's output showing zero failures                                                                                                                                                                              |
+| Build succeeds | the build command exiting `0`                                                                                                                                                                                                |
+| Manifest valid | `npx --yes skills-ref@0.1.5 validate ./skills/<name>` exiting `0`                                                                                                                                                            |
+| CI green       | every required context from the base branch's rules present and successful on the head commit (`gh pr checks <pr> --required` is the quick view; a missing required check is pending; non-required checks are informational) |
+| Bug fixed      | the original failing symptom now passing                                                                                                                                                                                     |

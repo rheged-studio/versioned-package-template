@@ -25,7 +25,7 @@ compatibility: >-
   token check is optional. It uses `gh` when authenticated; otherwise it asks the
   operator to confirm the secret.
 metadata:
-  version: 0.14.0
+  version: 0.15.2
   author: Rob Easthope
 allowed-tools: Read, Bash(node:*), Bash(git:*), Bash(gh:*), Bash(npx:*), mcp__linear-server__list_teams, mcp__linear-server__get_team, mcp__linear-server__list_projects
 ---
@@ -50,14 +50,14 @@ existing `config.json` (which may be absent on a fresh install). Each key is the
 classified by a three-way comparison — example placeholder vs existing value vs
 detected value:
 
-| Status | Meaning | Action |
-| --- | --- | --- |
-| `inferred` | No value yet, or still the example placeholder | Write the detected value |
-| `unchanged` | Existing value already equals what we detected | No-op |
-| `drift` | A real value that differs from detection — a deliberate edit | **Keep it**; report both values |
-| `needs-manual-input` | No detector and no value (e.g. a Linear slug with no MCP) | Leave for you to supply |
-| `manual-kept` | A real value we have no detector for | Keep it |
-| `unknown-kept` | A key in `config.json` no skill template knows about | Keep it, untouched |
+| Status               | Meaning                                                      | Action                          |
+| -------------------- | ------------------------------------------------------------ | ------------------------------- |
+| `inferred`           | No value yet, or still the example placeholder               | Write the detected value        |
+| `unchanged`          | Existing value already equals what we detected               | No-op                           |
+| `drift`              | A real value that differs from detection — a deliberate edit | **Keep it**; report both values |
+| `needs-manual-input` | No detector and no value (e.g. a Linear slug with no MCP)    | Leave for you to supply         |
+| `manual-kept`        | A real value we have no detector for                         | Keep it                         |
+| `unknown-kept`       | A key in `config.json` no skill template knows about         | Keep it, untouched              |
 
 Detection is keyed by config-**key name**, not by skill, so one detector serves
 every skill that uses a key (one `baseBranch` detector covers `changelog`,
@@ -106,8 +106,11 @@ at the repo root — a machine-readable inventory of which skill versions are in
 and where they came from:
 
 ```json
-{ "source": "https://github.com/rheged-studio/agent-skills", "ref": "main",
-  "skills": { "changelog": "1.2.0", "send-it": "2.1.3", "…": "…" } }
+{
+  "source": "https://github.com/rheged-studio/agent-skills",
+  "ref": "main",
+  "skills": { "changelog": "1.2.0", "send-it": "2.1.3", "…": "…" }
+}
 ```
 
 - **`skills`** — a full inventory of every installed bundle (including `preflight`
@@ -165,7 +168,8 @@ Planning entry point after install: `/grill-me` (Matt productivity pack). Run
    `mcp__linear-server__list_teams` for the team name,
    `mcp__linear-server__list_projects` for the **fallback catch-all** project
    (Rheged estate: `Follow-up issues` — not a per-repo home project; triage-pr
-   inherits the PR's live Linear project when it can, A-1541), and the
+   files a follow-up as a sub-issue of the PR's linked issue, and uses the
+   catch-all only when the PR has none, A-2756), and the
    workspace slug from the team/organisation — otherwise ask the user. Collect
    these into a `facts` object. Also add the **lock provenance** here:
    `lockSource` (the source repo the skills were installed from — the
@@ -237,6 +241,7 @@ Planning entry point after install: `/grill-me` (Matt productivity pack). Run
      Also say that if the operator believes an org secret already exists, it may
      have `visibility: selected` and leave this repo out. The fix then is adding
      this repo to the secret's selected repositories.
+
    - **can't verify** (a listing or the step-5 lookup errors, e.g. a `403`
      without admin scope, or `gh` not installed): say "couldn't verify the token — please confirm
      `CLAUDE_CODE_OAUTH_TOKEN` is set manually". A can't-tell is not an absence.

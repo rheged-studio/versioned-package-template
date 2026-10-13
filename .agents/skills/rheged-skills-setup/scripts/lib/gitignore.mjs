@@ -141,6 +141,10 @@ function isSkillConfigIgnoreComment(trimmed) {
   return (
     lower.includes("a-640") ||
     lower.includes("a-812") ||
+    // The same issues after the Linear key flip (A → R, A-2683): reference
+    // sweeps rewrite these comments, so match both spellings.
+    lower.includes("r-640") ||
+    lower.includes("r-812") ||
     lower.includes("generated-config") ||
     lower.includes("template-seed") ||
     (lower.includes("config.json") &&

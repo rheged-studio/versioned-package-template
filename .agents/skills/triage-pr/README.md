@@ -50,8 +50,11 @@ Two phases, chosen from the PR's draft state:
    [`references/phase-b-envelope.md`](references/phase-b-envelope.md) or
    [`references/phase-b-unattended.md`](references/phase-b-unattended.md).
 
-Shared review rules (impact rubric, lint surfaces, verify-before-implement) live in
-[`references/review-discipline.md`](references/review-discipline.md). Linear follow-up
+Shared review rules (impact rubric, verify-before-implement) live in
+[`references/review-discipline.md`](references/review-discipline.md). The lint-surface
+rule is shared with `preflight` and `commit` and lives in
+[`references/lint-surfaces.md`](references/lint-surfaces.md), vendored from the repo's
+`lib/lint-surfaces.md`. Linear follow-up
 routing lives in [`references/follow-up-routing.md`](references/follow-up-routing.md).
 
 **By default the skill promotes a cleanly-green draft to ready** and continues into

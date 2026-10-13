@@ -15,7 +15,7 @@ compatibility: >-
   Linear MCP server; if it is unavailable, skip that step silently. The
   filesystem pass needs Node.js ≥22.
 metadata:
-  version: 0.4.2
+  version: 0.5.0
   author: Rob Easthope
 allowed-tools: Read, Bash(git:*), Bash(gh:*), Bash(node:*), mcp__linear-server__get_issue, mcp__linear-server__save_issue, mcp__linear-server__list_issue_statuses
 ---
@@ -37,23 +37,25 @@ Five knobs live in [`config.json`](config.json) beside this file. Read it at the
 start of a run and use its values throughout. Edit your copied `config.json` to
 match the consuming repo:
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `linearTeamName` | Linear team **name** used to resolve the live `Done` state. Use the name, not the key — the key is renamed over time but the name is stable. | `"Rheged Studio"` |
-| `issueKeys` | Team-key prefixes that may appear in branch names. The issue-ID regex is built from these. | `["A"]` |
-| `mainBranch` | The trunk a branch must be merged into to count as merged — both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk is `master`, `develop`, or similar. | `"main"` |
-| `protectedBranches` | Branches that are **never** deleted, locally or remotely. | `["main"]` |
-| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt — `"yes"` pre-fills yes, `"no"` pre-fills no. The interactive gate always stays; this never auto-applies. Absent or unrecognised → treated as `"no"`. | `"no"` |
+| Key                      | Meaning                                                                                                                                                                                                                                                  | Default           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `linearTeamName`         | **Fallback** Linear team **name**, used only when an issue's `get_issue` result carries no team — the `Done` state is otherwise resolved against each issue's own team. Use the name, not the key — the key is renamed over time but the name is stable. | `"Rheged Studio"` |
+| `issueKeys`              | Team-key prefixes that may lead a branch name — every team whose issues the repo carries, plus legacy keys (e.g. `["R", "A"]`). The branch issue-ID regex is built from these.                                                                           | `["R", "A"]`      |
+| `mainBranch`             | The trunk a branch must be merged into to count as merged — both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk is `master`, `develop`, or similar.                                                                             | `"main"`          |
+| `protectedBranches`      | Branches that are **never** deleted, locally or remotely.                                                                                                                                                                                                | `["main"]`        |
+| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt — `"yes"` pre-fills yes, `"no"` pre-fills no. The interactive gate always stays; this never auto-applies. Absent or unrecognised → treated as `"no"`.                             | `"no"`            |
 
-Build the issue-ID regex **deterministically**: escape each key's regex
-metacharacters, and when there is more than one key wrap the alternation in
-`(?:…)` so the `-\d+` binds to all of them — `\b(?:A|B)-\d+\b`, never the naive
-join `\bA|B-\d+\b` (which parses as `\bA` _or_ `B-\d+\b`). A single key needs no
-wrapper: `\bA-\d+\b`. With no keys configured, match nothing. This mirrors the
-canonical `buildIssueRe` in the repo-root `lib/issue-keys.mjs`, which
-`pnpm vendor:sync` copies into each consuming bundle (ADR-0004). Match it
-against the **upper-cased** branch name (branches like `asw-7-as-acquired` carry
-the key in lower case).
+A branch's issue is its **leading** `<KEY>-<n>` token only. Build the anchored
+regex **deterministically**: escape each key's regex metacharacters, and when
+there is more than one key wrap the alternation in `(?:…)` so the `-\d+` binds to
+all of them — `^(?:R|A)-\d+\b`, never the naive join `^R|A-\d+\b` (which parses
+as `^R` _or_ `A-\d+\b`). A single key needs no wrapper: `^R-\d+\b`. With no keys
+configured, match nothing. Match it once against the **upper-cased** branch name
+(branches like `r-7-as-acquired` carry the key in lower case), so a slug token
+such as the `-c-2-` in `r-40-add-c-2-support` never resolves to an issue. This
+mirrors the canonical, tested `extractBranchIssueId` in the repo-root
+`lib/issue-keys.mjs` (this skill has no Linear scripts, so it mirrors the helper
+rather than vendoring it — ADR-0004).
 
 If the Linear MCP server is not available, skip the Linear status check and the
 optional `Done` writeback silently — they are not required for branch cleanup.
@@ -120,7 +122,7 @@ git worktree list
 - Identify worktrees with uncommitted changes: `git -C <path> status --porcelain`
   non-empty. These are surfaced separately in Step 6 and **never removed
   automatically** — the user handles them manually (`git worktree remove --force
-  <path>` once they have moved or discarded the work).
+<path>` once they have moved or discarded the work).
 - Worktree location is irrelevant to detection; `git worktree list` enumerates
   them wherever they live (e.g. a gitignored `.claude/worktrees/<branch>/`).
 
@@ -166,11 +168,14 @@ gh pr list --head <branch-name> --base <mainBranch> --state merged \
 
 ### Step 4 — Check Linear issue status for merged branches
 
-For each merged branch whose name contains an issue ID (extract with the regex
-built from `issueKeys`, matched against the upper-cased branch name):
+For each merged branch that starts with an issue ID (the leading ID, extracted
+as in [Configuration](#configuration)):
 
-- Fetch the issue via `mcp__linear-server__get_issue`.
-- Track any issue that is **not** in `Done` status.
+- Fetch the issue via `mcp__linear-server__get_issue`, and record its **team
+  name** (falling back to `linearTeamName` only when it carries none) — a repo
+  can carry issues from several teams, and an `a-` ID may belong to any of them.
+- Track any issue whose state type is not `completed` or `canceled` (compare
+  the `type`, not the display name — a team may rename `Done`).
 
 Skip this step silently if the Linear MCP server is unavailable.
 
@@ -260,10 +265,10 @@ Confirm the two passes **separately** — their blast radii and reversibility di
 so the user may accept one and decline the other:
 
 1. **Branch/worktree pass** — ask `Delete these worktrees and branches (local +
-   remote)? (yes/no)`. On `no`, skip the worktree/branch/remote deletion (Step
+remote)? (yes/no)`. On `no`, skip the worktree/branch/remote deletion (Step
    9.1–9.4) and the Linear `Done` writeback (Step 10).
 2. **Filesystem pass** — ask `Remove these empty directories and orphan
-   node_modules? (yes/no)`. On `no`, skip the filesystem removal (Step 9.5).
+node_modules? (yes/no)`. On `no`, skip the filesystem removal (Step 9.5).
 
 Rules:
 
@@ -339,7 +344,7 @@ runs **after** worktree removal so a just-emptied worktree parent (e.g.
 If any Linear issues from Step 4 are not `Done`:
 
 - Ask: `These Linear issues are linked to merged branches but aren't Done. Set
-  them to Done? (yes/no)`. Seed the default from `linearWritebackDefault` —
+them to Done? (yes/no)`. Seed the default from `linearWritebackDefault` —
   `"yes"` pre-fills the prompt with yes, anything else — `"no"`, an absent key,
   or an unrecognised value — pre-fills no. The prompt is always shown and the
   answer always confirmed — the knob only moves the default, it never
@@ -348,12 +353,15 @@ If any Linear issues from Step 4 are not `Done`:
   it didn't fire (e.g. the issue ID was added after the merge); a repo not wired
   to that integration can flip the default to `yes`.
 - If yes:
-  - Resolve the live `Done` state ID **once** via
-    `mcp__linear-server__list_issue_statuses` with `team: <linearTeamName>` —
-    state IDs are per-team and the team key changes over time, so pass the team
-    _name_.
-  - For each open issue, call `mcp__linear-server__save_issue` with
-    `state: <Done state ID>`.
+  - For each open issue, resolve the live `Done` state ID for **that issue's
+    team** (recorded in Step 4) via `mcp__linear-server__list_issue_statuses`
+    with `team: <team name>` — **once per team**, cached for the team's other
+    issues. State IDs are per-team and team keys change over time, so pass the
+    team _name_. Resolve `Done` by type: the `completed` state named "Done", else
+    the earliest `completed` by `position` (the rule `lib/linear-states.mjs`
+    pins with tests).
+  - Call `mcp__linear-server__save_issue` with `state: <that team's Done state
+ID>`.
 - If no, skip without changes.
 
 ### Step 11 — Summary

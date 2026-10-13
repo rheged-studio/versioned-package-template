@@ -16,7 +16,7 @@ compatibility: >-
   `preflight-changelog-ci.mjs` step assumes the consumer repo uses pnpm with a
   committed lockfile; skip it if yours does not.
 metadata:
-  version: 0.9.7
+  version: 0.10.0
   author: Rob Easthope
 allowed-tools: Write, Read, Edit, Glob, Grep, Bash(git:*), Bash(node:*), Bash(pnpm:*)
 ---
@@ -54,15 +54,15 @@ default, so a missing `config.json` or either key absent makes the scripts fail
 loudly rather than silently inherit ACME's identity. The rest are structural and
 keep generic, overridable defaults:
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `issueKeys` | Team-key prefixes used to recognise issue IDs in the branch and body. The issue-ID regex is built from these. | **required** |
-| `linearWorkspaceSlug` | Linear workspace slug used to build issue links (`https://linear.app/<slug>/issue/<id>`). | **required** |
-| `baseBranch` | The trunk the branch diff is taken against (`origin/<baseBranch>`). Overridable per-run via the `BASE_REF` env var. | `"main"` |
-| `changelogDir` | Directory the dated entries live in (scanned by the enrichment + validation scripts). | `"changelog"` |
-| `packageRoots` | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` when deriving `affected_packages`. | `["apps", "packages", "services"]` |
-| `fallbackPackage` | Package name for changed paths matching no `packageRoots` prefix. | `"infrastructure"` |
-| `affectedPackages` | Whether to emit the `affected_packages` field at all. Leave `false` for single-package repos (the field is write-only and redundant there — entries stay clean); set `true` in genuine monorepos. `rheged-skills-setup` flips it on when it detects a workspace config. | `false` |
+| Key                   | Meaning                                                                                                                                                                                                                                                                 | Default                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `issueKeys`           | Team-key prefixes used to recognise issue IDs in the branch and body — every team the repo carries, plus legacy keys (e.g. `["R", "A"]`). The issue-ID regexes are built from these.                                                                                    | **required**                       |
+| `linearWorkspaceSlug` | Linear workspace slug used to build issue links (`https://linear.app/<slug>/issue/<id>`).                                                                                                                                                                               | **required**                       |
+| `baseBranch`          | The trunk the branch diff is taken against (`origin/<baseBranch>`). Overridable per-run via the `BASE_REF` env var.                                                                                                                                                     | `"main"`                           |
+| `changelogDir`        | Directory the dated entries live in (scanned by the enrichment + validation scripts).                                                                                                                                                                                   | `"changelog"`                      |
+| `packageRoots`        | Monorepo dir prefixes mapping `<root>/<x>/…` → package `<x>` when deriving `affected_packages`.                                                                                                                                                                         | `["apps", "packages", "services"]` |
+| `fallbackPackage`     | Package name for changed paths matching no `packageRoots` prefix.                                                                                                                                                                                                       | `"infrastructure"`                 |
+| `affectedPackages`    | Whether to emit the `affected_packages` field at all. Leave `false` for single-package repos (the field is write-only and redundant there — entries stay clean); set `true` in genuine monorepos. `rheged-skills-setup` flips it on when it detects a workspace config. | `false`                            |
 
 All bundled scripts use only Node built-ins — no `npm install`, no build step.
 They operate on the **consumer repo's root `changelog/` directory** (run them
@@ -111,14 +111,14 @@ branches** and **merge merges** (as well as squash/rebase merges):
 
 ### Step 3 — Derive metadata
 
-| Field          | How to derive                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `issues`       | Match the issue-ID regex (built from `issueKeys`) against the branch name (upper-cased) and against commit subjects/bodies. Deduplicate.               |
-| `author`       | `git config user.email`.                                                                                                                               |
-| `co_authors`   | Parse `Co-authored-by: Name <email>` trailers across all branch commits. Store the email or `Name <email>` form. Empty array if none.                  |
-| `category`     | Infer from commit subjects and diff: `feature`, `fix`, `chore`, `docs`, `refactor`, `perf`. If ambiguous, ask the user to confirm.                     |
-| `breaking`     | Infer from `BREAKING CHANGE:` trailers, `!` in conventional-commit subjects, or removal of public surfaces. If unclear, ask the user. Default `false`. |
-| `release_note` | One-sentence user-facing summary distinct from `title`. Optional — leave blank if the change has no public-facing impact (chore, internal refactor).   |
+| Field          | How to derive                                                                                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `issues`       | From `issueKeys`: the branch's **leading** ID only (upper-cased; `extractBranchIssueId`, so a slug token like `-c-2-` is ignored), plus every match of the issue-ID regex in commit subjects/bodies (`buildIssueRe`). Deduplicate. |
+| `author`       | `git config user.email`.                                                                                                                                                                                                           |
+| `co_authors`   | Parse `Co-authored-by: Name <email>` trailers across all branch commits. Store the email or `Name <email>` form. Empty array if none.                                                                                              |
+| `category`     | Infer from commit subjects and diff: `feature`, `fix`, `chore`, `docs`, `refactor`, `perf`. If ambiguous, ask the user to confirm.                                                                                                 |
+| `breaking`     | Infer from `BREAKING CHANGE:` trailers, `!` in conventional-commit subjects, or removal of public surfaces. If unclear, ask the user. Default `false`.                                                                             |
+| `release_note` | One-sentence user-facing summary distinct from `title`. Optional — leave blank if the change has no public-facing impact (chore, internal refactor).                                                                               |
 
 **Field ownership** — what this skill authors vs. what it must leave alone is the
 crux of the contract; see [`references/changelog-contract.md`](references/changelog-contract.md)

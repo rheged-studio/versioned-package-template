@@ -165,6 +165,18 @@ const STICKY_MARKERS = [
 // down still counts, while an in-progress or errored comment never does.
 const CLAUDE_FINISHED_SUMMARY = /^\s*\*\*Claude finished @[^\s*]+?['’]s task\b/;
 
+// CodeRabbit edits its sticky summary in place, and while a review is running the
+// body carries an in-progress block:
+//   <!-- This is an auto-generated comment: review in progress by coderabbit.ai -->
+//   > Currently processing new changes in this PR. This may take a few minutes…
+// Every state of that comment matches `auto-generated comment`, and on a re-review
+// the placeholder can still carry the previous walkthrough, so an in-progress
+// marker vetoes the finished reading whatever else the body matches (A-2755).
+const IN_PROGRESS_MARKERS = [
+  /auto-generated comment: review in progress by coderabbit\.ai/i,
+  /currently processing new changes in this pr\b/i,
+];
+
 /**
  * Whether a body is worth considering as a headline summary. Rejects blank bodies
  * (e.g. an approval review with no text).
@@ -187,14 +199,19 @@ export function hasStickyMarker(body) {
 /**
  * Whether a comment body is a finished review summary: a sticky-marker summary,
  * or claude-code-action's tracking comment in its finished form. An in-progress
- * acknowledgement ("Claude Code is working…") is neither.
+ * acknowledgement ("Claude Code is working…") is neither, and neither is
+ * CodeRabbit's "Currently processing" placeholder, even though it carries sticky
+ * markers (`IN_PROGRESS_MARKERS`).
  * @param {string} body
  * @returns {boolean}
  */
 export function isFinishedSummary(body) {
-  return (
-    hasStickyMarker(body) || CLAUDE_FINISHED_SUMMARY.test(String(body ?? ""))
-  );
+  const text = String(body ?? "");
+  if (IN_PROGRESS_MARKERS.some((marker) => marker.test(text))) {
+    return false;
+  }
+
+  return hasStickyMarker(text) || CLAUDE_FINISHED_SUMMARY.test(text);
 }
 
 /**
@@ -523,7 +540,8 @@ function settleFromCheck(checkSpec, checkContexts, threshold) {
  * a review submitted on the head commit, a review-thread comment, or a
  * finished summary comment — a sticky-marker summary or claude-code-action's
  * "**Claude finished @…'s task**" tracking comment — created **or edited in
- * place** (`updatedAt`). A bare ack ("Claude Code is working…") never counts.
+ * place** (`updatedAt`). A bare ack ("Claude Code is working…") never counts, nor
+ * does CodeRabbit's "Currently processing" placeholder (A-2755).
  * @returns {{state: string, evidence: string}}
  */
 function settleFromActivity({
@@ -1142,6 +1160,19 @@ function claudeComment(body, createdAt, updatedAt, id = "IC_claude_tracking") {
   };
 }
 
+/**
+ * Self-test fixture: CodeRabbit's sticky summary comment, edited in place.
+ */
+function coderabbitComment(body, updatedAt) {
+  return {
+    author: { __typename: "Bot", login: "coderabbitai" },
+    body,
+    createdAt: "2026-10-06T11:16:37Z",
+    id: "IC_coderabbit_sticky",
+    updatedAt,
+  };
+}
+
 function selfTest() {
   // GraphQL returns bot logins WITHOUT the `[bot]` suffix (e.g. `claude`,
   // `coderabbitai`), so the fixtures use the bare form.
@@ -1657,6 +1688,44 @@ function selfTest() {
       claudeTwoRuns.aiSummaryComments.find(
         (comment) => comment.author === "claude",
       )?.commentId === "IC_claude_new",
+  });
+
+  // ---- CodeRabbit "Currently processing" placeholder on an unmapped coderabbitai (A-2755) ----
+  // The sticky comment is edited in place to an in-progress block minutes before
+  // the review exists. It carries `auto-generated comment` (and, on a re-review,
+  // the previous walkthrough), so only the in-progress veto keeps it unsettled.
+  const CR_IN_PROGRESS =
+    "<!-- This is an auto-generated comment: summarize by coderabbit.ai -->\n<!-- This is an auto-generated comment: review in progress by coderabbit.ai -->\n\n> [!NOTE]\n> Currently processing new changes in this PR. This may take a few minutes, please wait...\n\n<!-- end of auto-generated comment: review in progress by coderabbit.ai -->";
+  const CR_FINISHED =
+    "<!-- This is an auto-generated comment: summarize by coderabbit.ai -->\n\nNo actionable comments were generated in the recent review. 🎉\n\n<!-- walkthrough_start -->\n\n## Walkthrough\n\nAdds a self-test.\n\n<!-- walkthrough_end -->";
+
+  const crProcessing = buildResult({
+    ...settleBase,
+    commentNodes: [coderabbitComment(CR_IN_PROGRESS, "2026-10-06T11:27:30Z")],
+  });
+  const crReReview = buildResult({
+    ...settleBase,
+    commentNodes: [
+      coderabbitComment(
+        `${CR_IN_PROGRESS}\n\n<!-- walkthrough_start -->\n\n## Walkthrough\n\nEarlier round.\n\n<!-- walkthrough_end -->`,
+        "2026-10-06T11:27:30Z",
+      ),
+    ],
+  });
+  cases.push({
+    name: "settle: CodeRabbit's 'Currently processing' placeholder after ready stays missing, even with an old walkthrough",
+    ok:
+      settleBotStateFromResult(crProcessing, "coderabbitai") === "missing" &&
+      settleBotStateFromResult(crReReview, "coderabbitai") === "missing",
+  });
+
+  const crFinished = buildResult({
+    ...settleBase,
+    commentNodes: [coderabbitComment(CR_FINISHED, "2026-10-06T11:32:45Z")],
+  });
+  cases.push({
+    name: "settle: CodeRabbit's finished summary edited in after ready is reported",
+    ok: settleBotStateFromResult(crFinished, "coderabbitai") === "reported",
   });
 
   const reviewed = buildResult({

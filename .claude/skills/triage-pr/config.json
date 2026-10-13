@@ -1,8 +1,5 @@
 {
-  "reviewBots": [
-    "claude",
-    "coderabbitai"
-  ],
+  "reviewBots": ["claude", "coderabbitai"],
   "maxCiRounds": 5,
   "replyOnAccept": true,
   "promoteOnGreen": true,
@@ -11,12 +8,15 @@
   "reviewIdleMinutes": 5,
   "reviewWaitMaxMinutes": 20,
   "linearTeamName": "Rheged Studio",
-  "issueKeys": [
-    "A"
-  ],
+  "issueKeys": ["A"],
   "followUpLabel": "follow-up",
   "followUpProject": "Follow-up issues",
   "followUpState": "Backlog",
-  "reviewBotChecks": {},
+  "reviewBotChecks": {
+    "claude": {
+      "name": "claude-review",
+      "producer": "github-actions"
+    }
+  },
   "maxReviewRounds": 2
 }

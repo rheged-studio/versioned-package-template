@@ -260,15 +260,3 @@ export function resolveWipeTargetsWithLegacy(
     names.map((skill) => `${mirror}/${skill}`.replaceAll("\\", "/")),
   );
 }
-
-/**
- * Validate catalogue against a local agent-skills checkout (Rheged skills only).
- * @param {{ sources: Array<{ id: string, skills: string[] }> }} catalogue
- * @param {(skill: string) => boolean} rhegedSkillExists
- * @returns {string[]}
- */
-export function findMissingRhegedSourceSkills(catalogue, rhegedSkillExists) {
-  return rhegedSkillNames(catalogue).filter(
-    (skill) => !rhegedSkillExists(skill),
-  );
-}
