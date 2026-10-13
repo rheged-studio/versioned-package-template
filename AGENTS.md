@@ -1,6 +1,6 @@
 <!--
-  Managed upstream in rheged-studio/shared-agents-md and vendored into estate repos by the
-  release-orchestrator fan-out (fanout-agents-md.yml). Do NOT edit this copy — edit the canonical
+  Managed upstream in rheged-studio/shared-agents-md and vendored into estate repos by
+  Clacks (fanout-agents-md.yml). Do NOT edit this copy — edit the canonical
   AGENTS.md in shared-agents-md; changes here are overwritten on the next fan-out.
 -->
 
@@ -24,18 +24,27 @@ only add a rule here if it is true for **every** estate repo.
 
 ## Estate identity
 
-- The Linear team is **Rheged Studio**; its team key is **`A`** and the workspace slug is
-  **`rheged-studio`**.
-- Resolve Linear MCP calls by team **name** ("Rheged Studio"), **not** by key — the key has been
-  renamed repeatedly and older references are stale.
-- Issue IDs are **`A-<number>`**. Keep **one Linear project per repo** — don't split a single repo's
-  work across parallel projects. When creating a Linear issue (`save_issue` with no `id`, or the UI),
-  always set `project` to that repo's estate project. Never leave project empty; if the correct
-  project is unknown, resolve it (e.g. `list_projects`) or ask — do not file project-less.
+- The Linear workspace slug is **`rheged-studio`**. It has two teams:
+  - **Rheged Studio** — the parent team, key **`R`**.
+  - **Cadogan** — a sub-team, key **`C`**. It owns tempest, art-engine, gh-staff-next and cadogan.
+- An existing issue always belongs to its own team: resolve states and transitions against that
+  team. A repo's skill config **`linearTeamName`** is the fallback, naming the team for new issues
+  that have no parent issue.
+- Resolve Linear MCP calls by team **name** ("Rheged Studio", "Cadogan"), **not** by key — keys
+  have been renamed repeatedly and older references are stale.
+- Issue IDs are **`R-<number>`** or **`C-<number>`**. Legacy prefixes (`A`, `SK`, `ASW`, `AKW`,
+  `WTF`) still resolve in Linear, but new references always use the issue's current ID.
+- Each repo maps to **one Linear project or one initiative**. Don't split a repo's work across
+  parallel projects outside that initiative.
+- When creating a Linear issue (`save_issue` with no `id`, or the UI), always set `project`. For a
+  repo with a single project, use that project. For a repo with an initiative, resolve the project
+  with `list_projects` filtered to the initiative and pick it by workstream. If the right project is
+  unknown or ambiguous, ask — never file an issue without a project.
 
 ## Branches
 
-- Name branches `<linear-id>-<slug>`, lower-cased (e.g. `a-523-lay-out-the-canonical-repo`).
+- Name branches `<linear-id>-<slug>`, lower-cased (e.g. `r-123-lay-out-the-canonical-repo` or
+  `c-12-add-the-upload-form`).
 - **Verify the issue is real and relevant** (via the Linear MCP) before putting its ID in a branch —
   never fabricate or guess an ID. If no issue exists, use a descriptive branch name **without** an
   ID prefix.
@@ -73,8 +82,9 @@ only add a rule here if it is true for **every** estate repo.
   upstream identifiers — see the Writing carve-out).
 - **Ship with `/send-it`.** Open and update PRs through the `/send-it` skill — the estate's
   canonical ship flow (atomic commits, change-gated preflight, Conventional Commits PR title, push,
-  draft PR). Do **not** bypass it with ad-hoc `gh pr create` or manual PR steps when send-it is
-  installed. Re-run send-it to update an existing PR's title and body.
+  draft PR → CI fix → promote-on-green → Phase B → human envelope or unattended report). Do **not**
+  bypass it with ad-hoc `gh pr create` or manual PR steps when send-it is installed. Re-run send-it
+  to update an existing PR's title and body. Merge stays human.
 
 ## Collaboration guardrails
 
@@ -82,7 +92,7 @@ only add a rule here if it is true for **every** estate repo.
   branch.
 - **Claude is tooling, not a contributor** — don't add a `Co-Authored-By: Claude` trailer; it
   misrepresents authorship, and estate repos with the `commit-msg` hook strip it anyway.
-- **Bot reviews (CodeRabbit, Bugbot, Claude review) are advisory** — a green bot check is not proof a
+- **Bot reviews (CodeRabbit, Claude review) are advisory** — a green bot check is not proof a
   review actually ran; CI is the gate.
 - **Label mechanical rollout PRs `skip-review`.** When a PR only fans out or re-syncs shared code
   across the estate — a mechanical rollout with no new behaviour (shared-workflows distributions,
