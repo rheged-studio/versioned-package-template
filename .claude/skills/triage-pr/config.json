@@ -16,6 +16,10 @@
     "claude": {
       "name": "claude-review",
       "producer": "github-actions"
+    },
+    "coderabbitai": {
+      "name": "CodeRabbit",
+      "producer": "coderabbitai"
     }
   },
   "maxReviewRounds": 2
