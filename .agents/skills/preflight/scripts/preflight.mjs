@@ -6,6 +6,7 @@ import {
   parseMarkdownlintText,
   splitBySeverity,
 } from "./classify-lint.mjs";
+import { detectLintSurface, EMPTY_LINT_SURFACE } from "./lib/lint-surface.mjs";
 import {
   getBranchScope,
   relativiseToWorkspace,
@@ -228,11 +229,40 @@ function runActionlint(files) {
 }
 
 /**
+ * Print the branch's lint-surface changes (A-1203). Non-blocking: preflight
+ * can't tell whether the agent or the developer made them, so it lists them for
+ * the developer to confirm (see references/lint-surfaces.md).
+ * @param {ReturnType<typeof import('./lib/lint-surface.mjs').buildLintSurface>} lintSurface
+ */
+function reportLintSurface(lintSurface) {
+  if (lintSurface.error) {
+    console.warn(
+      `preflight: lint-surface ${lintSurface.error} (informational, not blocking)`,
+    );
+  }
+
+  if (lintSurface.count === 0) {
+    return;
+  }
+
+  console.warn(
+    "preflight: lint-surface changes on this branch — a developer decision, not applied or reverted (see references/lint-surfaces.md):",
+  );
+  for (const file of lintSurface.configFiles) {
+    console.warn(`  config: ${file}`);
+  }
+
+  for (const { directive, file, line } of lintSurface.directives) {
+    console.warn(`  ${directive}: ${file}:${line}`);
+  }
+}
+
+/**
  * Assemble the machine-readable preflight summary the ship flow reads. Pure —
  * `isDryRun` is passed in (not read from module scope) so both modes are
  * unit-testable.
  * @param {ReturnType<import('./lib/scope.mjs').getBranchScope>} scope
- * @param {{ failedLinters?: string[], actionlintStatus?: string, markdownlintStatus?: string }} results
+ * @param {{ failedLinters?: string[], actionlintStatus?: string, markdownlintStatus?: string, lintSurface?: ReturnType<typeof import('./lib/lint-surface.mjs').buildLintSurface> }} results
  * @param {{ introduced: import('./classify-lint.mjs').Violation[], preExisting: import('./classify-lint.mjs').Violation[] }} classified
  * @param {boolean} isDryRun
  * @param {boolean} [blockOnWarnings] gate on introduced warn-severity findings too (default off — A-601)
@@ -260,6 +290,9 @@ export function buildSummary(
     categories,
     deferred: classified.preExisting.length > 0 && !isDryRun,
     dryRun: isDryRun,
+    // Lint-surface changes on the branch (A-1203): informational, never
+    // blocking — a developer decision to confirm, per references/lint-surfaces.md.
+    lintSurface: results.lintSurface ?? EMPTY_LINT_SURFACE,
     mergeBase: scope.mergeBase,
     passed: introducedBlocking.length === 0 && failedLinters.length === 0,
     results: {
@@ -437,6 +470,11 @@ function main() {
 
   const scope = getBranchScope();
   const { baseBranch, blockOnWarnings } = resolveConfig();
+  const lintSurface =
+    scope.changedFiles.length === 0
+      ? EMPTY_LINT_SURFACE
+      : detectLintSurface(scope.mergeBase, scope.changedFiles, ROOT);
+  reportLintSurface(lintSurface);
 
   if (scope.changedFiles.length === 0) {
     console.log(
@@ -445,7 +483,7 @@ function main() {
     if (!dryRun) {
       const earlySummary = buildSummary(
         scope,
-        { actionlintStatus: "skipped" },
+        { actionlintStatus: "skipped", lintSurface },
         {
           introduced: [],
           preExisting: [],
@@ -466,7 +504,7 @@ function main() {
     if (!dryRun) {
       const earlySummary = buildSummary(
         scope,
-        { actionlintStatus: "skipped" },
+        { actionlintStatus: "skipped", lintSurface },
         {
           introduced: [],
           preExisting: [],
@@ -577,7 +615,7 @@ function main() {
 
   const summary = buildSummary(
     scope,
-    { actionlintStatus, failedLinters, markdownlintStatus },
+    { actionlintStatus, failedLinters, lintSurface, markdownlintStatus },
     classified,
     dryRun,
     blockOnWarnings,

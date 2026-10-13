@@ -39,24 +39,28 @@ fetcher (or comment) provides `url`.
 ## Disposition details
 
 ### [accept] Null guard in src/api.ts:42
+
 - **Source:** CodeRabbit · [thread](https://github.com/org/repo/pull/12#discussion_r1)
 - **Finding:** Optional `user` used without a check before `.id`.
 - **Verify:** Real, in-scope, high-impact (would throw on anonymous).
 - **Fix:** Early return when `!user`.
 
 ### [follow-up] Extract retry helper
+
 - **Source:** Claude · [thread](…)
 - **Finding:** Duplicated fetch-retry in three callers.
 - **Verify:** Real but non-blocking for this PR.
-- **Linear:** "Add retry backoff to fetch layer" → file under Triage PR upgrades
+- **Linear:** "Add retry backoff to fetch layer" → file as sub-issue of A-1541 (Agent Skills)
 
 ### [gated] eslint.config.mjs rule change
+
 - **Source:** … · [thread](…)
 - **Finding:** …
 - **Verify:** …
 - **Why gated:** Would edit lint config; prefer shared package change unless signed off.
 
 ### [decline] / [outdated]
+
 1. CodeRabbit · `README.md:14` — pinning wording already correct · [thread](…)
 2. Claude · exact-pinned astro — YAGNI for this PR · [thread](…)
 ```
@@ -74,7 +78,7 @@ Phase B disposition plan (nothing applied yet):
   1. [accept] Fix null guard in src/api.ts:42 — …
   2. [decline] Suggested rewrite is YAGNI — …
   3. [follow-up] Extract retry helper — draft: "Add retry backoff to fetch layer"
-     → file under Triage PR upgrades (inherited from A-1541)
+     → file as sub-issue of A-1541 (Agent Skills)
   4. [gated] Would need `eslint.config.mjs` rule change — your call; prefer a
      change to @rheged-studio/eslint-config
   Bots still outstanding at wait end: coderabbitai (if any)
@@ -117,7 +121,7 @@ Step 9 (durable, still open).
   open with their marks, so a later run rediscovers them as `deferredThreads`. Stop;
   no Step 13 "all done" claim beyond "envelope declined; nothing applied".
 - **Other** / typed overrides → interpret freeform changes (`yes except decline
-  #1, follow-up #2 as …`). If unclear, **one** clarifying turn — still no apply
+#1, follow-up #2 as …`). If unclear, **one** clarifying turn — still no apply
   until resolved.
 - Under `--dry-run`, print the detail block + plan that _would_ be proposed and
   create nothing (do not call the question tools).

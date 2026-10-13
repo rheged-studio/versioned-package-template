@@ -20,7 +20,7 @@ compatibility: >-
   Linear debt-issue step needs the Linear MCP server; skip it silently if
   unavailable.
 metadata:
-  version: 0.4.1
+  version: 0.5.0
   author: Rob Easthope
 allowed-tools: Read, Bash(git:*), Bash(pnpm:*), Bash(node:*), mcp__linear-server__save_issue, mcp__linear-server__list_issue_statuses, mcp__linear-server__list_projects
 ---
@@ -58,8 +58,9 @@ They operate on the **consumer repo's root** (run them from the repo root, where
    major — and exits 1 with a switch hint (`nvm use` / `fnm use` / `mise use`) if
    it does not, so ESLint never runs under the wrong Node. A `>=` / `^` / `~`
    engines range is not a pin; a repo with neither is unchecked.
-3. Read `.preflight-summary.json` for the categories run and the violation counts
-   (`passed`, `deferred`, `blocking`). Written only on a real run, not under
+3. Read `.preflight-summary.json` for the categories run, the violation counts
+   (`passed`, `deferred`, `blocking`), and `lintSurface` (see
+   [Lint surfaces](#lint-surfaces-are-a-developer-decision)). Written only on a real run, not under
    `--dry-run`. It is a transient scratch artefact, never committed — consumer
    repos gitignore it (the `rheged-skills-setup` skill adds the entry when it
    reconciles a repo).
@@ -71,6 +72,10 @@ The script's exit code drives the loop:
 - **Exit 1 — introduced violations (blocking).** Run
   `node skills/preflight/scripts/lint-fix.mjs` on the branch-scoped paths, then
   re-run preflight. Repeat until introduced violations clear or the user aborts.
+  Fix the **code**: never clear a violation by editing lint config or adding an
+  ignore / disable directive. When that is the only fix, stop the loop and report
+  it as a developer decision (see
+  [Lint surfaces](#lint-surfaces-are-a-developer-decision)).
   (Inside a ship flow, commit the fixes; standalone, leave them in the working
   tree for the user to review and commit.) **Only introduced _errors_ block by
   default** — introduced ESLint **warnings** are reported as a non-blocking notice
@@ -86,6 +91,31 @@ Exit 1 can also signal a linter that failed to run (non-zero exit with no
 parseable violations) — inspect its stderr; this is blocking too — or a Node
 major mismatch (see step 2): switch Node and re-run, don't treat it as a lint
 failure.
+
+## Lint surfaces are a developer decision
+
+Changing how a linter is configured, or telling it to look away, is the
+developer's call, never the agent's. The full rule (the surfaces covered, the
+preference order, what to report, and the carve-out for repairing a developer's
+own change) is in [`references/lint-surfaces.md`](references/lint-surfaces.md),
+shared with `triage-pr` and `commit`. In preflight it means:
+
+- **In the exit-1 loop**, fix the offending code. If the only way to clear an
+  introduced violation is a lint-config edit or an ignore / disable directive,
+  don't make it. Stop and report the four points from the reference (file and
+  rule, the change you would have made, why no code fix was available, the
+  preferred alternative) at the end of the run.
+- **`lintSurface` in the summary** lists the lint config files the branch changed
+  (`configFiles`) and the ignore / disable directives it adds (`directives`, each
+  with `file`, `line`, `directive` and `text`), with a `count`. Preflight can't
+  tell who made them, so it is **informational and never blocks**: the exit code
+  is unchanged. Only changed files that can carry a directive are diffed, and if
+  that scan fails, `lintSurface.error` says so (config files are still listed)
+  instead of the failure stopping preflight. When `count > 0`, list them in the report as developer decisions
+  for the developer to confirm. Don't revert them, and don't make more.
+
+The report is the natural stopping point. Never stop mid-loop to ask about a lint
+surface.
 
 ## Categories
 
@@ -189,6 +219,10 @@ no `npm install`:
   pre-existing.
 - `scripts/lib/{scope,diff-lines,paths}.mjs` — shared helpers (workspace/base-branch
   detection, diff-line mapping, path normalisation).
+- `scripts/lib/lint-surface.mjs` — the `lintSurface` detector: changed lint config
+  files and added ignore / disable directives (A-1203).
+- `references/lint-surfaces.md` — the shared lint-surface rule, vendored from the
+  repo's `lib/lint-surfaces.md` (ADR-0006). Edit the source, not the copy.
 
 They have no external npm dependencies (Node built-ins only).
 

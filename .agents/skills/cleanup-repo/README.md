@@ -21,17 +21,17 @@ This skill ships only [`config.example.json`](config.example.json), a neutral
 template — the per-skill `config.json` is generated on install, not vendored, so
 you never inherit another repo's values. Run the `rheged-skills-setup` skill to
 generate `config.json` from the example with your repo's facts, or copy it to
-`config.json` and fill it in by hand. Set `linearTeamName` and `issueKeys` for
-your organisation, or the Linear lookups will target the wrong team and branch
-issue-IDs won't match.
+`config.json` and fill it in by hand. Set `issueKeys` to every team key (plus any
+legacy key) your branches start with, or branch issue-IDs won't match, and set
+`linearTeamName` as the fallback team.
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `linearTeamName` | Linear team **name** used to resolve the live `Done` state. Stable across team-key renames. | `"Rheged Studio"` |
-| `issueKeys` | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these. | `["A"]` |
-| `mainBranch` | Trunk a branch must be merged into to count as merged; both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk isn't `main` (`master`, `develop`, …). | `"main"` |
-| `protectedBranches` | Branches never deleted, locally or remotely. | `["main"]` |
-| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt (`"yes"` / `"no"`); the interactive gate always stays, so it never auto-applies. Absent or unrecognised → `"no"`. | `"no"` |
+| Key                      | Meaning                                                                                                                                                                                  | Default           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `linearTeamName`         | **Fallback** Linear team **name**, used only when an issue carries no team; the `Done` state is otherwise resolved per issue's own team. Stable across team-key renames.                 | `"Rheged Studio"` |
+| `issueKeys`              | Team-key prefixes that may lead a branch name; the anchored issue-ID regex is built from these.                                                                                          | `["R", "A"]`      |
+| `mainBranch`             | Trunk a branch must be merged into to count as merged; both passes diff against `origin/<mainBranch>`. Set it for repos whose trunk isn't `main` (`master`, `develop`, …).               | `"main"`          |
+| `protectedBranches`      | Branches never deleted, locally or remotely.                                                                                                                                             | `["main"]`        |
+| `linearWritebackDefault` | Seeds the yes/no default of the Step 10 Linear `Done` writeback prompt (`"yes"` / `"no"`); the interactive gate always stays, so it never auto-applies. Absent or unrecognised → `"no"`. | `"no"`            |
 
 > **Base branch.** The trunk defaults to `origin/main`; set the `mainBranch`
 > config key for repositories on `master` / `develop` / similar — both merge

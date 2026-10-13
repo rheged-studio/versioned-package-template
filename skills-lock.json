@@ -11,13 +11,13 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/changelog/SKILL.md",
-      "computedHash": "ca09e50b848e92b66d4ada17e61c4c1bd8de0d394805dad40cc826c68e6cfe55"
+      "computedHash": "2638fb8383055d3cdb77180729c6737dcc94d30bc6d658fa12d9aea0de57c7d1"
     },
     "cleanup-repo": {
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/cleanup-repo/SKILL.md",
-      "computedHash": "0fa0746be395463da6cdb40e7657863ffca443b0ca4ebccb51bd3ebcf3b45edd"
+      "computedHash": "6aa509f7e15fa15cc2b8f3040b1b71b835234126903c7eb62f582c44d1172d51"
     },
     "code-review": {
       "source": "mattpocock/skills",
@@ -35,7 +35,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/commit/SKILL.md",
-      "computedHash": "c58e58df4fb10b3c5c6efcc103ab1645f80eb9a5489f11d3cb4a9333989c4151"
+      "computedHash": "b60a2eccbbf0e31d364a18ecedc5030cf80466449c6f416def943683841e246f"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -95,7 +95,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/linear-sync/SKILL.md",
-      "computedHash": "1581410aa36a792f0d33c73cc060b0b55329c7fdd2731e62f12fa01a54bf1af1"
+      "computedHash": "deb1a17bd898719123306a519a5c5ce02cd7bbe38e43dfc869b18fa9eeb9e14a"
     },
     "pr": {
       "source": "rheged-studio/agent-skills",
@@ -107,7 +107,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/preflight/SKILL.md",
-      "computedHash": "2ae368a541578a86c3500f3b105d9eefe3ec821b20fa099746a884d55fe19441"
+      "computedHash": "f5af48137a42322cba0931c8fd820b03e08547960995bef243725ecad1469b19"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -137,13 +137,13 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/rheged-skills-setup/SKILL.md",
-      "computedHash": "b001185fdbbd823109b8feff16b3627d0ab51d14a466611c1734166c7db653dd"
+      "computedHash": "b5c739b5fca1a2f36067a0284b1f7ffdea18e7206a361f0f6408a5d749f7fe45"
     },
     "send-it": {
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/send-it/SKILL.md",
-      "computedHash": "13c32c61017afbe0b370bf739ecf6da9b4f339935e2242effbfd8da4b4146348"
+      "computedHash": "2449f442c05a1cdc214bf5d3972e57d0d113a6e050b58c9f9237b1f822c71d7c"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
@@ -191,7 +191,7 @@
       "source": "rheged-studio/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/triage-pr/SKILL.md",
-      "computedHash": "36eca3f172103d9cf9cec38809bdd5bc6978408a39e5d323b0feac7c99810826"
+      "computedHash": "d5e2aabb50341dc1b245f475bb953e5c3cb3fd5e849e7f12dc51e3953f4779da"
     },
     "wait-what": {
       "source": "mattpocock/skills",
@@ -209,7 +209,7 @@
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/wizard/SKILL.md",
-      "computedHash": "3642db2041d66efa88407e958792268c5cace9e286ad0a93ae218bffc8aae448"
+      "computedHash": "49298bed80e7f722b071ad5d64798c75eb705bbbe0635b9bbffd08cd6fb81647"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",

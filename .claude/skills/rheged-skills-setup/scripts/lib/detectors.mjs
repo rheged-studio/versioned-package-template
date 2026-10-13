@@ -35,6 +35,13 @@ const REVIEW_WAIT_MAX_MINUTES = 20;
 const CLAUDE_REVIEW_REUSABLE =
   /^\s*uses:\s*["']?(?:rheged-studio|acme-skunkworks)\/shared-workflows\/\.github\/workflows\/reusable-claude-code-review\.ya?ml@/;
 const CLAUDE_REVIEW_PRODUCER = "github-actions";
+// CodeRabbit posts a `CodeRabbit` commit status on every reviewed head
+// (`pending — Review in progress` → `success — Review completed`), produced by its
+// own GitHub App. A repo with a root `.coderabbit.yaml` has it installed, unless
+// that file turns the status off with `commit_status: false` (A-2755).
+const CODERABBIT_CONFIG_FILES = [".coderabbit.yaml", ".coderabbit.yml"];
+const CODERABBIT_STATUS_OFF = /^\s*commit_status:\s*["']?false["']?\s*(#.*)?$/m;
+const CODERABBIT_CHECK = { name: "CodeRabbit", producer: "coderabbitai" };
 
 /**
  * Detect the published surface from the root package.json `files` field (the
@@ -176,6 +183,29 @@ export function detectClaudeReviewCallerJob(repoRoot) {
 }
 
 /**
+ * Whether the repo has CodeRabbit configured to post its `CodeRabbit` commit
+ * status: a root `.coderabbit.yaml` (or `.yml`) that does not set
+ * `commit_status: false`. A line scan rather than a YAML parse, like
+ * `detectClaudeReviewCallerJob`.
+ * @param {string} repoRoot
+ * @returns {boolean}
+ */
+export function detectCodeRabbitStatusCheck(repoRoot) {
+  for (const file of CODERABBIT_CONFIG_FILES) {
+    let text;
+    try {
+      text = readFileSync(join(repoRoot, file), "utf8");
+    } catch {
+      continue;
+    }
+
+    return !CODERABBIT_STATUS_OFF.test(text);
+  }
+
+  return false;
+}
+
+/**
  * Build a memoised `detect(key)` for a host repo.
  * @param {object} params
  * @param {string} params.repoRoot host repo root the detectors scan
@@ -283,15 +313,23 @@ export function createDetectors({ linearFacts = {}, repoRoot }) {
     // Map `claude` to the estate Claude review check when the repo calls the
     // shared reusable workflow, so a clean review (no PR review, no threads)
     // still settles on the terminal check rather than waiting out the review cap
-    // (A-2453). Pinned to the GitHub Actions producer (A-2328). No caller → `{}`
-    // (never null), and a later edit reads as drift and is kept.
+    // (A-2453). Pinned to the GitHub Actions producer (A-2328). Map
+    // `coderabbitai` to its `CodeRabbit` status when the repo configures
+    // CodeRabbit, so the settle waits for the review rather than its in-progress
+    // placeholder (A-2755). Neither → `{}` (never null), and a later edit reads
+    // as drift and is kept.
     reviewBotChecks: () => {
       const job = detectClaudeReviewCallerJob(repoRoot);
-      return {
-        value: job
-          ? { claude: { name: job, producer: CLAUDE_REVIEW_PRODUCER } }
-          : {},
-      };
+      const checks = {};
+      if (job) {
+        checks.claude = { name: job, producer: CLAUDE_REVIEW_PRODUCER };
+      }
+
+      if (detectCodeRabbitStatusCheck(repoRoot)) {
+        checks.coderabbitai = { ...CODERABBIT_CHECK };
+      }
+
+      return { value: checks };
     },
     reviewBots: () => ({ value: [...REVIEW_BOTS] }),
     // Hybrid review-settle knobs (A-1179) — structural defaults, never null.

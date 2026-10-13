@@ -1,8 +1,9 @@
 # `linear-sync`
 
 Transition the Linear issues linked to the current branch through their workflow
-states (In Progress / In Review / Done) — resolving state IDs by team **name**,
-extracting issue IDs from the branch, and applying the transition idempotently.
+states (In Progress / In Review / Done) — reading the branch's leading issue ID,
+resolving state IDs against each issue's own team (by **name**), and applying the
+transition idempotently. One repo can carry issues from several teams.
 
 ## Install
 
@@ -21,14 +22,14 @@ This skill ships only [`config.example.json`](config.example.json), a neutral
 template — the per-skill `config.json` is generated on install, not vendored, so
 you never inherit another repo's values. Run the `rheged-skills-setup` skill to
 generate `config.json` from the example with your repo's facts, or copy it to
-`config.json` and fill it in by hand. Set `linearTeamName` and `issueKeys` for
-your organisation, or the state lookups will target the wrong team and branch
-issue-IDs won't match.
+`config.json` and fill it in by hand. Set `issueKeys` to every team key (plus any
+legacy key) your branches start with, or branch issue-IDs won't match, and set
+`linearTeamName` as the fallback team.
 
-| Key | Meaning | Default |
-| --- | --- | --- |
-| `linearTeamName` | Linear team **name** used to resolve live state IDs. Stable across team-key renames — always resolve by name, not key. | `"Rheged Studio"` |
-| `issueKeys` | Team-key prefixes that may appear in branch names; the issue-ID regex is built from these. | `["A"]` |
+| Key              | Meaning                                                                                                                                                                                                    | Default           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `linearTeamName` | **Fallback** Linear team **name**, used only when an issue carries no team; states are otherwise resolved against each issue's own team. Stable across team-key renames — always resolve by name, not key. | `"Rheged Studio"` |
+| `issueKeys`      | Team-key prefixes that may lead a branch name; the anchored issue-ID regex is built from these.                                                                                                            | `["R", "A"]`      |
 
 ## Requirements
 
@@ -38,8 +39,9 @@ issue-IDs won't match.
 
 ## What it does
 
-Resolves the target state's live ID once (by team name), extracts the branch's
-issue IDs (from `issueKeys`), reads each issue's current state, and applies the
+Extracts the branch's **leading** issue ID (from `issueKeys`; slug tokens such as
+`-c-2-` never match), reads the issue with `get_issue`, resolves the target
+state's live ID for **that issue's team** (cached per team), and applies the
 target transition idempotently — skipping any issue already at or past it. The
 default standalone target is **In Progress** (the start-of-work transition).
 
