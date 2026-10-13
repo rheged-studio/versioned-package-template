@@ -2,10 +2,10 @@
 title: Seed R and A keys and re-vendor the multi-team skills
 release_note:
 created_at: "2026-10-13T11:52:42Z"
-merged_at:
+merged_at: "2026-10-13T12:20:49Z"
 branch: a-2654-5-templates-seed-r-and-a-keys-in-versioned-and-npm-package
-pr:
-commit:
+pr: 55
+commit: ef95bc2
 author: rob@rheged.studio
 co_authors: []
 category: chore
@@ -14,9 +14,9 @@ issues:
   - A-2654
   - A-2776
 stats:
-  files_changed:
-  loc_added:
-  loc_removed:
+  files_changed: 83
+  loc_added: 2555
+  loc_removed: 972
 ---
 
 ## Changed
