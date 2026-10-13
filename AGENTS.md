@@ -58,8 +58,8 @@ only add a rule here if it is true for **every** estate repo.
   the Linear MCP or `/linear-sync`. Do **not** wait for a branch or PR.
 - The transition is idempotent: skip if the issue is already In Progress or further along.
 - Do **not** skip In Progress just because a later PR will advance the status.
-- When a PR opens or updates via `/send-it`, linked issues move to **In Review** (send-it /
-  linear-sync handles this).
+- When a PR opens or updates via `/send-it`, linked issues move to **In Review** (`/send-it` /
+  `/linear-sync` handles this).
 - On merge, Linear's GitHub integration moves issues to **Done** — do **not** set Done manually.
 
 ## Commits, PRs & releases
