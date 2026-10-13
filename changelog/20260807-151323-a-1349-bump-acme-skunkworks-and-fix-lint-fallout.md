@@ -12,7 +12,7 @@ co_authors: []
 category: chore
 breaking: false
 issues:
-  - A-1349
+  - R-1349
 stats:
   files_changed: 6
   loc_added: 69
@@ -21,7 +21,7 @@ stats:
 
 ## Changed
 
-**Bump shared @acme-skunkworks tooling and clear markdownlint 3.x fallout ([A-1349](https://linear.app/rheged-studio/issue/A-1349))**
+**Bump shared @acme-skunkworks tooling and clear markdownlint 3.x fallout ([R-1349](https://linear.app/rheged-studio/issue/R-1349))**
 
 - Raise `changelog-core`, `commitlint-config`, `eslint-config`, and `markdownlint-config` to the published latest ranges
 - Ignore vendored skill bundles and fan-out `AGENTS.md` under markdownlint-cli2 so 3.x rules do not fail on upstream docs

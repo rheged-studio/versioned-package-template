@@ -2,8 +2,8 @@
 title: Rewrite repo identity and docs for the deploy-target archetype
 release_note:
 version:
-created_at: '2026-07-13T15:07:11Z'
-merged_at: '2026-07-13T15:33:57Z'
+created_at: "2026-07-13T15:07:11Z"
+merged_at: "2026-07-13T15:33:57Z"
 branch: a-941-docs-rewrite-repo-identity-docs-for-the-deploy-target
 pr: 9
 commit: dfc6d98
@@ -13,7 +13,7 @@ co_authors: []
 category: docs
 breaking: false
 issues:
-  - A-941
+  - R-941
 stats:
   files_changed: 6
   loc_added: 380
@@ -23,7 +23,7 @@ stats:
 ## Changed
 
 - Pointed the template's identity and docs at the versioned, non-npm
-  **deploy-target** archetype instead of the npm-package one ([A-941](https://linear.app/rheged-studio/issue/A-941)).
+  **deploy-target** archetype instead of the npm-package one ([R-941](https://linear.app/rheged-studio/issue/R-941)).
 - `infrastructure/repo-config.yaml`: dropped `npmScope` / `npmRegistryUrl` /
   `githubPackagesRegistryUrl`; kept only `defaultBranch` + `nodeVersionFile`.
   Because the estate's `reusable-load-repo-config.yml@v1` hard-requires those npm
@@ -39,7 +39,7 @@ stats:
   with the deploy-target model (the orchestrator cuts the tag + Release; there is
   no in-repo release/publish workflow); documented the in-repo
   `changelog-enrich.yml` (`mode: enrich`) leg; and referenced the
-  `initialise-versioned-repo` skill ([A-946](https://linear.app/rheged-studio/issue/A-946)).
+  `initialise-versioned-repo` skill ([R-946](https://linear.app/rheged-studio/issue/R-946)).
 
 ## Removed
 
@@ -51,6 +51,6 @@ stats:
 ## Fixed
 
 - Corrected the `GO/NO GO` required-check ruleset guidance to require the
-  **road-runner-bot bypass** ([A-944](https://linear.app/rheged-studio/issue/A-944)): the in-repo `changelog-enrich.yml` pushes
+  **road-runner-bot bypass** ([R-944](https://linear.app/rheged-studio/issue/R-944)): the in-repo `changelog-enrich.yml` pushes
   `changelog/**` directly to `main` as `road-runner-bot[bot]`, which the required
   check would otherwise reject. Human PRs still have to satisfy `GO/NO GO`.

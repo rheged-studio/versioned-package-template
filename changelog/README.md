@@ -2,7 +2,7 @@
 
 One Markdown file per change, capturing what changed and why. Entries are written by the `/send-it` slash command at PR-creation time; the post-merge fields are filled in-repo by the `changelog-enrich` workflow after merge.
 
-This is the curated, per-change, machine-readable record — and, since the move to release-please (which runs with `skip-changelog`, A-371), the **only** changelog in the repo: there is no root `CHANGELOG.md`. This repository is a **versioned, non-npm deploy target**: it publishes no npm or GitHub package — the release-orchestrator runs release-please to open the release PR and cuts the git **tag + GitHub Release**, sourcing its release notes from the release-please PR body. The `version` field is retained for octavo-schema parity but stays blank on this deploy target — it is never stamped (see the lifecycle below).
+This is the curated, per-change, machine-readable record — and, since the move to release-please (which runs with `skip-changelog`, R-371), the **only** changelog in the repo: there is no root `CHANGELOG.md`. This repository is a **versioned, non-npm deploy target**: it publishes no npm or GitHub package — the release-orchestrator runs release-please to open the release PR and cuts the git **tag + GitHub Release**, sourcing its release notes from the release-please PR body. The `version` field is retained for octavo-schema parity but stays blank on this deploy target — it is never stamped (see the lifecycle below).
 
 ## File naming
 
@@ -30,7 +30,7 @@ author: "you@example.com"
 co_authors: []
 category: feature # feature | fix | chore | docs | refactor | perf
 breaking: false
-issues: ["A-123"] # Linear issue IDs
+issues: ["R-123"] # Linear issue IDs
 stats: # filled post-merge by changelog-enrich
   files_changed: # integer
   loc_added: # integer
@@ -97,7 +97,7 @@ Only include `Added` / `Changed` / `Fixed` headings that have entries.
 ## Lifecycle
 
 Two stages — post-merge enrichment runs in-repo via `reusable-changelog-enrich.yml`
-on every push to `main` (A-944; following A-796 / A-821):
+on every push to `main` (R-944; following R-796 / R-821):
 
 1. **Create or update an entry (PR-time):** run `/send-it` from a feature branch. It writes the entry with the PR-time fields (`title`, `release_note`, `created_at`, `branch`, `author`, `co_authors`, `category`, `breaking`, `issues`) and empty placeholders for the rest. The entry merges to `main` with the feature PR and waits.
 2. **Post-merge (in-repo):** the `changelog-enrich.yml` workflow (`mode: enrich`) resolves the just-merged PR and fills `merged_at`/`commit`/`pr`/`stats` via `changelog-core enrich`. Write-back pushes only `changelog/**` as `road-runner-bot[bot]` (ADR 0004). `mode: enrich` is the deploy-target mode: it fills only `merged_at`/`commit`/`pr`/`stats` and does **not** stamp `version` (contrast the npm targets' `mode: finalise`, which reads the just-bumped `package.json` version). No later step stamps it either, so on this deploy target `version` stays blank; the release-orchestrator cuts the tag + Release and sources the notes from the release-please PR body, not from these entries.

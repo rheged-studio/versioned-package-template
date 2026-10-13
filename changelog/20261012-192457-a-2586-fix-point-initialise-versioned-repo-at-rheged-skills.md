@@ -11,7 +11,7 @@ co_authors: []
 category: fix
 breaking: false
 issues:
-  - A-2586
+  - R-2586
 stats:
   files_changed: 18
   loc_added: 69

@@ -65,8 +65,8 @@ only add a rule here if it is true for **every** estate repo.
 ## Commits, PRs & releases
 
 - Commit messages and PR titles follow **Conventional Commits** (`feat:`, `fix:`, `chore:`, …).
-- **Dual merge policy** (ADR 0003 / A-1176): feature / ship PRs use **merge commits**; release-please
-  version PRs and fan-out PRs stay **squash**. Both methods remain allowed (A-1177) — do not disable
+- **Dual merge policy** (ADR 0003 / R-1176): feature / ship PRs use **merge commits**; release-please
+  version PRs and fan-out PRs stay **squash**. Both methods remain allowed (R-1177) — do not disable
   squash at the repo level.
 - Under merge commits the **bump signal is the Conventional Commits on the branch** (enforced by the
   commitlint gate), not the PR title. PR titles still follow Conventional Commits for CI and humans;

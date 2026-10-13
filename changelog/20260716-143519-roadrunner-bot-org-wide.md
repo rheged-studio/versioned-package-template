@@ -2,8 +2,8 @@
 title: Drop per-repo road-runner-bot install from the onboarding docs and skill
 release_note: Onboarding a spawned repo no longer includes a per-repo road-runner-bot install step — the bot is now installed org-wide, so the repo inherits it.
 version:
-created_at: '2026-07-16T14:35:19Z'
-merged_at: '2026-07-16T14:42:37Z'
+created_at: "2026-07-16T14:35:19Z"
+merged_at: "2026-07-16T14:42:37Z"
 branch: docs-roadrunner-bot-org-wide
 pr: 17
 commit: 7f4214d
@@ -25,7 +25,7 @@ stats:
 
 - road-runner-bot (the release-orchestrator App) is now installed **org-wide**
   across the config-estate repos with `contents: write` + `pull-requests: write`, so
-  a repo spawned from this template inherits it — the same treatment [A-945](https://linear.app/rheged-studio/issue/A-945) gave the
+  a repo spawned from this template inherits it — the same treatment [R-945](https://linear.app/rheged-studio/issue/R-945) gave the
   org-wide `ROADRUNNER_*` secrets. Removed the now-stale "install road-runner-bot"
   per-repo onboarding step and reframed it as org-wide inheritance in:
   - `README.md` — the setup checklist, the release-orchestrator onboarding block

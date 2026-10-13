@@ -12,7 +12,7 @@ author: "hello@robeasthope.com"
 co_authors: []
 category: chore
 breaking: false
-issues: ["A-940"]
+issues: ["R-940"]
 stats:
   files_changed:
   loc_added:
@@ -24,7 +24,7 @@ stats:
 - Finalised `ci.yml` for the content-only, non-publishing deploy-target shape.
   The `build-test` caller already ran test-only (`build: false` /
   `typecheck: false` — Vitest, ShellCheck and bats only) and the
-  `validate-payload` job was already gone, both from the [A-939](https://linear.app/rheged-studio/issue/A-939) strip.
+  `validate-payload` job was already gone, both from the [R-939](https://linear.app/rheged-studio/issue/R-939) strip.
 - Re-scoped the `lint` caller's ESLint lane off the removed `src/` onto the
   repo's first-party infrastructure code: it now runs
   `eslint infrastructure/tests` (was `eslint: false`), gating the repo-local

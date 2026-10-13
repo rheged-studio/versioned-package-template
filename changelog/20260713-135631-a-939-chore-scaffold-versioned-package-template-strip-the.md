@@ -12,7 +12,7 @@ author: "hello@robeasthope.com"
 co_authors: []
 category: chore
 breaking: false
-issues: ["A-939"]
+issues: ["R-939"]
 stats:
   files_changed:
   loc_added:

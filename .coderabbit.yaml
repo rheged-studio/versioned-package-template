@@ -1,7 +1,7 @@
-# CodeRabbit configuration — the estate's canonical source of truth (A-667 / A-732).
+# CodeRabbit configuration — the estate's canonical source of truth (R-667 / R-732).
 #
 # The release-orchestrator fans this file out *verbatim* to every consumer flagged
-# `coderabbit: true` (A-712), so it becomes each repo's entire CodeRabbit config:
+# `coderabbit: true` (R-712), so it becomes each repo's entire CodeRabbit config:
 # anything omitted here reverts that consumer to CodeRabbit's own defaults. Keep it a
 # strict superset of every estate skip convention so a fan-out never re-reviews a PR
 # that one repo already silences.
@@ -14,13 +14,13 @@ reviews:
   profile: "chill"
 
   # Keep the high-level summary, but put it in the walkthrough comment instead of
-  # the PR description (A-1102). Description edits re-fire pull_request.edited and
+  # the PR description (R-1102). Description edits re-fire pull_request.edited and
   # waste a full CI run for an unchanged SHA. Comments do not.
   high_level_summary_in_walkthrough: true
 
   auto_review:
     # Denylist: review every PR *except* those carrying the `skip-review` label
-    # (A-667). A `!`-prefixed entry is a negative match. It fails safe — a forgotten
+    # (R-667). A `!`-prefixed entry is a negative match. It fails safe — a forgotten
     # label means more review, not less.
     labels:
       - "!skip-review"

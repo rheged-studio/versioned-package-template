@@ -3,7 +3,7 @@
 # NOT loaded by CI. The estate's reusable-load-repo-config.yml@v1 hard-requires
 # npm registry/scope keys (npmRegistryUrl / npmScope / githubPackagesRegistryUrl)
 # that a deploy target does not carry, so ci.yml points each job's
-# `node-version-file` at `.nvmrc` directly instead of loading this file (A-941).
+# `node-version-file` at `.nvmrc` directly instead of loading this file (R-941).
 # This file is kept as the canonical record of the two knobs and is reconciled
 # by the initialise-versioned-repo skill when a repo is spawned.
 #
