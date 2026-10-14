@@ -13,7 +13,7 @@ co_authors: []
 category: chore
 breaking: false
 issues:
-  - A-1365
+  - R-1365
 stats:
   files_changed: 2
   loc_added: 31
@@ -23,8 +23,8 @@ stats:
 
 ## Changed
 
-- Float `.github/workflows/changelog-enrich.yml` reusable caller from the [A-821](https://linear.app/rheged-studio/issue/A-821)
+- Float `.github/workflows/changelog-enrich.yml` reusable caller from the [R-821](https://linear.app/rheged-studio/issue/R-821)
   merge SHA pin to `acme-skunkworks/shared-workflows/.github/workflows/reusable-changelog-enrich.yml@v1`
-  ([A-1365](https://linear.app/rheged-studio/issue/A-1365)), matching the
+  ([R-1365](https://linear.app/rheged-studio/issue/R-1365)), matching the
   `octavo` / `shared-workflows` exemplars now that `@v1` includes the enrich
   workflow.

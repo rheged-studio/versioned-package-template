@@ -4,42 +4,42 @@ on:
   pull_request:
     # `edited` is included so the changelog-completeness gate re-runs when a
     # title is corrected — a release-triggering title must carry a changelog
-    # entry (SK-371), so a stale pass on an old title would be unsafe. Feature
+    # entry (R-371), so a stale pass on an old title would be unsafe. Feature
     # PRs land as merge commits; release-please ranks Conventional Commits on
-    # `main` (A-824 / A-1176), so the PR title is no longer the sole post-merge
+    # `main` (R-824 / R-1176), so the PR title is no longer the sole post-merge
     # bump signal. (The PR-title lint itself now lives in validate-pr-title.yml,
     # which also re-runs on `edited`.) The default set is opened/synchronize/reopened.
     types: [opened, edited, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # A-1100 / A-1195: never cancel a RUNNING run. A superseded run's `needs` all
+  # R-1100 / R-1195: never cancel a RUNNING run. A superseded run's `needs` all
   # report `cancelled`, the always() aggregator still executes, and its verdict
   # mints a FALSE RED `GO/NO GO`. With `false`, concurrency can only cancel a
-  # *pending* run (no check-runs minted). Subsumes the A-961 release-please
+  # *pending* run (no check-runs minted). Subsumes the R-961 release-please
   # carve-out — covers every branch, not just the release one.
   cancel-in-progress: false
 
-# Defence-in-depth (ASW-313): the repo default is already read-only, but
+# Defence-in-depth (R-313): the repo default is already read-only, but
 # pin it here so a future org-policy change can't silently widen CI's token.
 permissions:
   contents: read
 
 # The lint + build-test work runs through the estate's shared reusable
-# workflows (SK-447, completing SK-424's deferred caller half); the template is
+# workflows (R-447, completing R-424's deferred caller half); the template is
 # the reference consumer that proves the pattern before the fleet rollout
-# (SK-420). The callers float on the shared-workflows `@v1` major tag so
-# non-breaking releases arrive without a per-release Dependabot SHA bump (A-662
-# / A-672). PR-title validation now runs through its own `validate-pr-title.yml`
-# caller (A-695), leaving only the changelog-completeness gate inline here (it
+# (R-420). The callers float on the shared-workflows `@v1` major tag so
+# non-breaking releases arrive without a per-release Dependabot SHA bump (R-662
+# / R-672). PR-title validation now runs through its own `validate-pr-title.yml`
+# caller (R-695), leaving only the changelog-completeness gate inline here (it
 # reads the PR title, which a reusable workflow can't). The `GO/NO GO`
-# aggregator (SK-412/SK-424) stays local and unchanged — it is the
+# aggregator (R-412/R-424) stays local and unchanged — it is the
 # estate-canonical required check and lives per-repo by design.
 jobs:
   # No `config` (load-repo-config) job. A deploy target carries no npm
   # registry/scope keys, and the estate's reusable-load-repo-config@v1 hard-
   # requires them (npmRegistryUrl / npmScope / githubPackagesRegistryUrl) — it
-  # aborts against a content-only repo-config.yaml (A-941). The reusable callers
+  # aborts against a content-only repo-config.yaml (R-941). The reusable callers
   # default `node-version-file` to `.nvmrc`, so each job points at `.nvmrc`
   # directly (the same file setup-node reads). `infrastructure/repo-config.yaml`
   # stays as a declarative record (defaultBranch + nodeVersionFile) maintained by
@@ -49,13 +49,13 @@ jobs:
   # shared Layer-2 lint bundle. Renders the status context `lint / Lint`.
   # Deliberately NOT skipped on the release-please branch — the changelog lane
   # must validate entries (including any post-merge enricher write-backs that
-  # land on main) via `pnpm exec changelog-core validate` (A-808).
+  # land on main) via `pnpm exec changelog-core validate` (R-808).
   lint:
     uses: rheged-studio/shared-workflows/.github/workflows/reusable-lint.yml@v1
     with:
       node-version-file: .nvmrc
       # ESLint re-scoped off the (removed) `src/` onto the repo's first-party
-      # infrastructure code (A-940). The content-only baseline has no `src/`, but
+      # infrastructure code (R-940). The content-only baseline has no `src/`, but
       # `infrastructure/tests/**` holds first-party `.mjs` — the repo-local
       # init-skill test suites — worth gating in CI. Scoped to
       # `infrastructure/tests` rather than the whole `infrastructure/` tree on
@@ -78,9 +78,9 @@ jobs:
       # default is `changelog:validate`) — implemented by changelog-core.
       changelog-script: validate:changelog
       # yaml lane defaults are correct: yaml-paths `.`, yamllint 1.37.1
-      # (matches), actionlint 1.7.12 (owned upstream in lockstep, SK-422 — do
+      # (matches), actionlint 1.7.12 (owned upstream in lockstep, R-422 — do
       # not override per-consumer). yamllint uses shared-workflows' centralised
-      # .yamllint.yml (SK-438), so the repo's local .yamllint.yml is now only
+      # .yamllint.yml (R-438), so the repo's local .yamllint.yml is now only
       # consumed by the pre-commit hook.
 
   # Build (verification) + Vitest + ShellCheck + bats, via the shared Layer-2
@@ -90,7 +90,7 @@ jobs:
     uses: rheged-studio/shared-workflows/.github/workflows/reusable-build-test.yml@v1
     with:
       node-version-file: .nvmrc
-      # Build + typecheck are off: the A-939 content-only baseline has no `src/`
+      # Build + typecheck are off: the R-939 content-only baseline has no `src/`
       # to compile (the tsconfig trio and the `build`/`tsc` scripts were removed),
       # so there is no verification build or type-check to run. Vitest, ShellCheck
       # and bats below remain the build-test gate.
@@ -106,11 +106,11 @@ jobs:
       # defaults to infrastructure/tests, recursive.
       bats: true
 
-  # Changelog-completeness gate (SK-371): a release-triggering PR title
+  # Changelog-completeness gate (R-371): a release-triggering PR title
   # (feat/fix/breaking) must carry a dated changelog/ entry. Restores the
   # no-entry-no-release coupling for titles that still signal shippability at
   # PR time. Post-merge, release-please ranks Conventional Commits on `main`
-  # (A-824 / A-1176) — the PR title is no longer the sole bump signal.
+  # (R-824 / R-1176) — the PR title is no longer the sole bump signal.
   # Non-release titles (docs/chore/ci/…) — including the release-please PR's
   # own `chore: release …` — are a clean pass. Stays inline because it reads
   # the PR title (github.event.pull_request.title), which a reusable workflow
@@ -150,7 +150,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: pnpm exec changelog-core check-completeness
 
-  # Single estate release gate (SK-412/SK-424). An always()-run aggregator whose
+  # Single estate release gate (R-412/R-424). An always()-run aggregator whose
   # intrinsic check-run, named `GO/NO GO`, succeeds iff every required job above
   # passed or legitimately skipped. A check-run (not a commit status) is
   # App-only — minted solely by this repo's own Actions run — so a push-scoped
@@ -160,7 +160,7 @@ jobs:
   # spaces already survive in `lint / Lint`); if it ever doesn't, fall back to
   # explicit-create (POST /check-runs, Option A).
   #
-  # The caller swap SK-411 foreshadowed has now landed (SK-447): the lint /
+  # The caller swap R-411 foreshadowed has now landed (R-447): the lint /
   # build-test work runs through rheged-studio/shared-workflows reusable
   # workflows; this aggregator stays put across that swap, which is exactly why
   # it lives here (custom per-repo) and not upstream.
@@ -171,12 +171,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ⚖️ Verdict
-        # Pass/fail by inspecting the `needs` results (A-1103 / A-1195). `skipped`
+        # Pass/fail by inspecting the `needs` results (R-1103 / R-1195). `skipped`
         # is allowlisted only on `release-please--*` branches (path-skipped jobs);
         # everywhere else every needed job must report `success`. `failure`,
         # `cancelled` and a null/empty result fail the gate.
         #
-        # `cancelled` is deliberately NOT allowlisted (A-1100). NEVER reach for
+        # `cancelled` is deliberately NOT allowlisted (R-1100). NEVER reach for
         # `if: !cancelled()` on this job — a skipped check-run counts as SUCCESS
         # for required status checks and would forge the gate.
         env:
@@ -188,7 +188,7 @@ jobs:
         run: |
           set -euo pipefail
           # Allow `skipped` only on release-please path-skips; otherwise every
-          # needed job must have succeeded (A-1103).
+          # needed job must have succeeded (R-1103).
           if [[ "$HEAD_REF" == release-please--* ]]; then
             ALLOWED='["success","skipped"]'
           else

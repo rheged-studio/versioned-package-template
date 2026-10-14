@@ -21,9 +21,9 @@ This repo is both the template and its own reference deploy target. There are tw
 > itself. This checklist is the single source of truth for the non-copied setup — `CLAUDE.md`'s
 > generation checklist links here rather than duplicating it.
 >
-> These settings were proven on the `eslint-config` testbed (A-311 / A-312 / A-313 / A-314) and
+> These settings were proven on the `eslint-config` testbed (R-311 / R-312 / R-313 / R-314) and
 > reconciled to the current estate (release-please, the `GO/NO GO` aggregator check-run, and shared
-> reusable CI callers — A-371 / A-413 / A-424 / A-447 / A-432).
+> reusable CI callers — R-371 / R-413 / R-424 / R-447 / R-432).
 
 ### Spawned-repo quick checklist
 
@@ -36,8 +36,8 @@ After "Use this template", in the new repo:
 > content-only deploy target. The numbered steps below are the reference for what it does — walk
 > them by hand only if you're not using the skill. See
 > [`CLAUDE.md` → Agent skills](CLAUDE.md#agent-skills). Committed skill bundles from the template are
-> bootstrap only; the scaffolder refreshes them at pull-on-instantiation (A-776). This template is
-> not a skills-push-fan-out consumer (A-774).
+> bootstrap only; the scaffolder refreshes them at pull-on-instantiation (R-776). This template is
+> not a skills-push-fan-out consumer (R-774).
 
 1. **Per-repo edits** — rename `package.json` identity, point `infrastructure/repo-config.yaml` at
    the new repo, **re-seed `.release-please-manifest.json`** so `"."` matches the starting
@@ -60,7 +60,7 @@ Set on this repo and on each spawned repo (rulesets are not copied by "Use this 
       spawned _deploy target_ this is optional; leave it off unless the new repo is itself a template.
 - [ ] "Allow auto-merge" **on**; merge commits **and** squash merges allowed
       (feature PRs → merge commit; release-please + fan-out PRs → squash —
-      A-1176 / A-1177).
+      R-1176 / R-1177).
 - [ ] Secret scanning + push protection **on**.
 - [ ] `Require GO/NO GO gate` ruleset configured (see [the required-check ruleset](#the-required-check-ruleset)).
 - [ ] `Trunk` ruleset configured, with **road-runner-bot as a bypass actor** (see
@@ -87,23 +87,23 @@ stable required gate. Require it on `main` via the `Require GO/NO GO gate` rules
 - [ ] PR required before merging.
 - [ ] **0 required approvals.** ⚠️ A non-zero count blocks the orchestrator's own release-PR merge.
 - [ ] Required status check: **`GO/NO GO`** — **not** the retired `🔬 Build & Lint`. The caller
-      swap (A-447) replaced it with `lint / Lint` + `build-test / Build & Test`, and `GO/NO GO`
+      swap (R-447) replaced it with `lint / Lint` + `build-test / Build & Test`, and `GO/NO GO`
       aggregates them all.
 - [ ] Ruleset **pinned to the GitHub Actions integration** (`integration_id: 15368`), so nothing
       but this repo's Actions can satisfy it.
-- [ ] **road-runner-bot listed as a bypass actor** (A-944 / A-1019). The **in-repo**
+- [ ] **road-runner-bot listed as a bypass actor** (R-944 / R-1019). The **in-repo**
       `changelog-enrich.yml` job pushes `changelog/**` **directly to `main`** as
       `road-runner-bot[bot]` after each merge (post-merge enrichment is in-repo now —
-      A-796 / A-821 — not a central cron). Without the bypass, the required-check
+      R-796 / R-821 — not a central cron). Without the bypass, the required-check
       ruleset rejects that direct push. Human PRs still have to satisfy `GO/NO GO` as
       normal — the bypass is scoped to the bot actor only. npm-package templates need
-      the same enricher bypass on GO/NO GO (A-1019); this is not deploy-target-only.
+      the same enricher bypass on GO/NO GO (R-1019); this is not deploy-target-only.
 
 The `Trunk` ruleset carries the **same** road-runner-bot bypass (integration `2195582`, an `always`
 bypass actor) for the pull-request / deletion / non-fast-forward rules, so the enrich push clears
-both rulesets (ADR 0004 / A-794).
+both rulesets (ADR 0004 / R-794).
 
-Footguns (A-418):
+Footguns (R-418):
 
 - The gate must be a **check-run, not a commit status** — a commit status is forgeable by any
   push-scoped token; a check-run can only be minted by a GitHub App (the repo's own Actions run).
@@ -116,8 +116,8 @@ Hands-off releases are driven by the **private** `rheged-studio/release-orchestr
 holds the bot key, runs `release-please release-pr`, merges the release PR, and — for a `kind: deploy`
 repo — **cuts the git tag + GitHub Release directly** (there is no in-repo release/publish workflow;
 a deploy target publishes nothing). Post-merge changelog enrichment runs **in-repo** via
-`changelog-enrich.yml` (`mode: enrich`, `@rheged-studio/changelog-core`, A-944) — not through the
-orchestrator's retired central cron (A-801) and not through a `pkg-release.yml` (there is none).
+`changelog-enrich.yml` (`mode: enrich`, `@rheged-studio/changelog-core`, R-944) — not through the
+orchestrator's retired central cron (R-801) and not through a `pkg-release.yml` (there is none).
 Without onboarding, the repo never gets its automatic release PRs or tags.
 
 The template already ships everything the orchestrator needs on the repo side — release-please
@@ -125,23 +125,23 @@ config + manifest (`release-type: node`, `include-v-in-tag`, the mandatory group
 `@rheged-studio/changelog-core`, `.nvmrc`, the in-repo `changelog-enrich.yml`, and `GO/NO GO`
 running on the `release-please--*` branch. So onboarding reduces to a single step:
 
-- [ ] **Register the repo in the orchestrator's matrix as `kind: deploy`** (A-648 / A-945) — the
+- [ ] **Register the repo in the orchestrator's matrix as `kind: deploy`** (R-648 / R-945) — the
       `deploy` kind tells the orchestrator to cut a tag + GitHub Release rather than trigger a
       publish.
 
 > **No per-repo road-runner-bot install or `ROADRUNNER_*` grant step.** The road-runner-bot App is
 > now installed **org-wide** across the config-estate repos with `contents: write` +
 > `pull-requests: write`, and `ROADRUNNER_PRIVATE_KEY` (org secret) + `ROADRUNNER_CLIENT_ID` (org
-> var) are likewise provisioned **org-wide** (A-945). So a spawned repo inherits both the bot and
+> var) are likewise provisioned **org-wide** (R-945). So a spawned repo inherits both the bot and
 > its credentials: the in-repo `changelog-enrich` job can mint its App token with no per-repo
 > install, repository-selection edit, or secret-visibility edit. (These were manual per-repo steps
 > in the npm-package template; they are gone.)
 
 The required check the orchestrator waits on is **`GO/NO GO`** (the `🔬 Build & Lint` → `GO/NO GO`
-cutover completed via A-419 / A-596 / A-437), and the CI callers already run on `release-please--*`
+cutover completed via R-419 / R-596 / R-437), and the CI callers already run on `release-please--*`
 (no skip), so the changelog lane validates entries before the release PR merges.
 
-> The old A-309 "exclude `CHANGELOG.md` from markdown lint" step no longer applies: release-please
+> The old R-309 "exclude `CHANGELOG.md` from markdown lint" step no longer applies: release-please
 > runs with `skip-changelog`, so there is no root `CHANGELOG.md` — the dated `changelog/` directory
 > is the only changelog.
 
@@ -155,7 +155,7 @@ template":
    for a short-lived GitHub token, and that exchange only yields a token if the App is granted.
    Missing it, the action's internal `git fetch origin --depth=20 <branch>` runs unauthenticated
    and fails with `could not read Username` — so the review never runs **even after the secret is
-   added** (A-621 / A-636).
+   added** (R-621 / R-636).
 
 **Preferred: provision both org-wide, then just verify per repo.** Rather than repeat this on every
 spawned repo:
@@ -179,7 +179,7 @@ spawned repo:
 
 > **Security note on the org secret.** `ROADRUNNER_PRIVATE_KEY` is org-compromise-grade and — since
 > post-merge enrichment moved in-repo — is now provisioned org-wide so every repo's own
-> `changelog-enrich` job can mint an App token (A-822 / A-945), a deliberate widening from the old
+> `changelog-enrich` job can mint an App token (R-822 / R-945), a deliberate widening from the old
 > "`release-orchestrator` only" scope. `CLAUDE_CODE_OAUTH_TOKEN` is by contrast an Anthropic API
 > token — blast radius is API usage / billing abuse, and it is rotatable. Still, an "All
 > repositories" org secret is readable by any workflow in any org repo, so **scope it to the
@@ -193,7 +193,7 @@ _Template maintainer only — set once for the `rheged-studio` organisation. The
 release identity across every repo; a spawned-repo owner can skip this section._
 
 - [ ] `ROADRUNNER_PRIVATE_KEY` (org **secret**) → provisioned **org-wide** so every repo's in-repo
-      `changelog-enrich` job can mint an App token (A-822 / A-945). This is a deliberate widening from
+      `changelog-enrich` job can mint an App token (R-822 / R-945). This is a deliberate widening from
       the npm-package template's "`release-orchestrator` only" scope, made when enrichment moved
       in-repo. The App private key never expires and is org-compromise-grade, so this trade-off is
       backed by SHA-pinned actions, the read-only default token, and fork-PR approval (all below);

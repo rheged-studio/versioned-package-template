@@ -1,7 +1,7 @@
 // The initialise-versioned-repo skill is vendored byte-for-byte into two trees —
 // `.claude/skills/` (Claude Code) and `.agents/skills/` (Cursor). They must stay
 // identical, but `eslint --fix` in pre-commit only touches `.agents/**` (the preset
-// ignores `.claude/**`), which silently drifted the mirror once already (A-663).
+// ignores `.claude/**`), which silently drifted the mirror once already (R-663).
 // This test is the guard: it fails the moment the two trees diverge in file set or
 // content, so a drift is caught in CI rather than shipped.
 

@@ -5,7 +5,7 @@ import { defineConfig } from "eslint/config";
  * Self-lint config for the template, dogfooding the published Acme preset:
  * the `base` stack plus the TypeScript-file overrides.
  *
- * This is a content-only, non-npm baseline (A-939): there is no first-party
+ * This is a content-only, non-npm baseline (R-939): there is no first-party
  * `src/` TypeScript to build or type-check, so the old src-spanning
  * `tsconfig.eslint.json` project pin is gone with the tsconfig trio. ESLint's
  * only lint surface here is the `infrastructure/` `.mjs` tooling; the two `.ts`

@@ -1,5 +1,5 @@
 // Unit tests for the initialise-versioned-repo skill's GLOSSARY.md fs wrapper
-// (A-2448). The pure transform is covered in the `-files` suite; these exercise
+// (R-2448). The pure transform is covered in the `-files` suite; these exercise
 // the four statuses against a throwaway temp dir.
 
 import { adaptGlossary } from "../../.claude/skills/initialise-versioned-repo/scripts/lib/glossary.mjs";

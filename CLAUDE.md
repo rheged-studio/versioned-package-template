@@ -27,7 +27,7 @@ The list below covers the per-repo code edits inside a generated repo, plus the 
 steps (each cross-links its README subsection rather than duplicating the detail).
 
 When generating a repo from this template, **run the `initialise-versioned-repo` skill** in the new
-repo (see "## Agent skills" below, and A-946). It drives the whole post-generation checklist below in
+repo (see "## Agent skills" below, and R-946). It drives the whole post-generation checklist below in
 one idempotent, dry-run-first pass — so the individual steps here are the _reference_ for what it
 does, not a manual walk you have to perform by hand. (It also adapts the inherited `GLOSSARY.md` to
 the new repo.) Because this is a content-only deploy target,
@@ -51,10 +51,10 @@ The skill **automates**:
 - **Points `infrastructure/repo-config.yaml`** at the new repo (`defaultBranch`, `nodeVersionFile`)
   where values differ, preserving comments.
 - **Pulls the shared skills** via `npx skills add … --copy` from `rheged-studio/agent-skills` for
-  the locked set (both Claude Code and Cursor trees) — pull-on-instantiation (A-776). Committed
+  the locked set (both Claude Code and Cursor trees) — pull-on-instantiation (R-776). Committed
   copies in the template are bootstrap only; the repo-local `initialise-versioned-repo` scaffolder is
   never overwritten.
-- **Clears the template-seed skill-config gitignore** (A-812) so spawned consumers can commit the
+- **Clears the template-seed skill-config gitignore** (R-812) so spawned consumers can commit the
   resolved per-skill `config.json` files — then **generates those configs** by wrapping the
   `rheged-skills-setup` skill (only the neutral `config.example.json` ships in the vendored bundles).
   Runs **after** the skills pull so configs match the pulled versions.
@@ -62,10 +62,10 @@ The skill **automates**:
   "Use this template") — pinned to the GitHub Actions integration, **with road-runner-bot as a bypass
   actor** so the in-repo `changelog-enrich` push clears the required check (see "CI gate
   (`GO/NO GO`)" below). See [README → the required-check ruleset](README.md#the-required-check-ruleset).
-- **Ensures the `Trunk` changelog bypass** (ADR 0004 / A-794) — repo-level `Trunk` ruleset with
+- **Ensures the `Trunk` changelog bypass** (ADR 0004 / R-794) — repo-level `Trunk` ruleset with
   `road-runner-bot` as an `always` bypass actor so `changelog-enrich.yml` can push `changelog/**`.
   Creates `Trunk` when absent.
-- **Creates the `Changelog write-back path guard`** (A-946) — the octavo-parity **push** ruleset
+- **Creates the `Changelog write-back path guard`** (R-946) — the octavo-parity **push** ruleset
   (a `file_path_restriction` over the code/config paths) that blocks non-bot direct pushes to those
   paths while `road-runner-bot` and the repo write-roles bypass it: defence-in-depth for the in-repo
   changelog write-back. (The pre-existing `Protect main trunk` deletion / non-fast-forward ruleset is
@@ -76,30 +76,30 @@ so you finish these by hand:
 
 - **Onboard the release-orchestrator** — the template ships every repo-side prerequisite and
   road-runner-bot is installed org-wide, so this reduces to **registering the repo in the
-  orchestrator's matrix as a `kind: deploy` target** (A-648 / A-945). The `deploy` kind tells the
+  orchestrator's matrix as a `kind: deploy` target** (R-648 / R-945). The `deploy` kind tells the
   orchestrator to cut a git tag + GitHub Release rather than trigger a publish. See
   [README → release-orchestrator onboarding](README.md#release-orchestrator-onboarding).
 - **Verify the Claude review prerequisites** — `CLAUDE_CODE_OAUTH_TOKEN` secret **and** the Claude
   GitHub App on the repo (the App install fixes the `git fetch … could not read Username` failure —
-  A-621 / A-636). Preferably both are org-wide, in which case just confirm inheritance. See
+  R-621 / R-636). Preferably both are org-wide, in which case just confirm inheritance. See
   [README → Claude review prerequisites](README.md#claude-review-prerequisites).
 
 There is **no** npm-OIDC bootstrap, **no** `npm-release` environment, **no** Trusted-Publisher
 configuration, and **no** "enable the Release workflow" step — a deploy target publishes nothing and
 ships no in-repo release/publish workflow (contrast the npm-package template, where all of those
 existed). The road-runner-bot App is now installed org-wide across the config-estate repos, and
-`ROADRUNNER_*` is likewise org-wide (A-945), so a spawned repo inherits both the bot and its
+`ROADRUNNER_*` is likewise org-wide (R-945), so a spawned repo inherits both the bot and its
 credentials — there is no per-repo bot install or "grant selected access" step either.
 
 ## Decisions live in Linear, not ADRs
 
 Architectural and process decisions for this template — and for every repo spawned from it —
 are recorded as **Linear issues**, not as in-repo ADR files. The issue IDs threaded through
-this document and the code comments (e.g. `A-326`, `A-328`, `A-447`, `A-639`) are the durable
+this document and the code comments (e.g. `R-326`, `R-328`, `R-447`, `R-639`) are the durable
 decision record: follow the ID to Linear for the full rationale. A repo generated from the
 template inherits this convention — capture new decisions as Linear issues and reference their
 IDs in commits, PR bodies, and comments rather than adding a `docs/adr/` tree. The template
-itself is catalogued in the Open Source initiative in Linear (A-238).
+itself is catalogued in the Open Source initiative in Linear (R-238).
 
 ## Package manager and Node
 
@@ -138,18 +138,18 @@ This repo adopts the shared `@rheged-studio/agent-skills` bundles, installed via
 
 One further skill is **repo-local**, not from the shared bundle (it lives only in this template's `.claude/skills/` + `.agents/skills/`, is not in `skills-lock.json`, and travels into spawned repos via "Use this template"):
 
-- **`/initialise-versioned-repo`** — the one-shot, idempotent post-generation setup for a repo freshly spawned from this template (A-946 / A-776). Resets `changelog/` to just its README (the changelog-poisoning fix), re-seeds `.release-please-manifest.json`, rewrites the `package.json` identity + `infrastructure/repo-config.yaml` from the repo's own facts, **adapts the inherited `GLOSSARY.md`** (rewrites its context header, strips the template-only terms), **pulls the shared skills** via `npx skills add … --copy`, **wraps and runs `rheged-skills-setup`** to generate every skill's `config.json`, and applies the non-copied GitHub settings — the `Require GO/NO GO gate` required-check ruleset (with the road-runner-bot bypass), the `Trunk` changelog bypass, and the `Changelog write-back path guard` push ruleset — via `gh api` behind a confirmation gate, then verifies-and-reports the org/cross-repo steps it can't automate (orchestrator registration as `kind: deploy`, Claude review). It has **no** npm-release environment / OIDC / enable-Release steps — a deploy target publishes nothing. It **is** the executable form of the generation checklist at the top of this file. Dry-run first, safe to re-run.
+- **`/initialise-versioned-repo`** — the one-shot, idempotent post-generation setup for a repo freshly spawned from this template (R-946 / R-776). Resets `changelog/` to just its README (the changelog-poisoning fix), re-seeds `.release-please-manifest.json`, rewrites the `package.json` identity + `infrastructure/repo-config.yaml` from the repo's own facts, **adapts the inherited `GLOSSARY.md`** (rewrites its context header, strips the template-only terms), **pulls the shared skills** via `npx skills add … --copy`, **wraps and runs `rheged-skills-setup`** to generate every skill's `config.json`, and applies the non-copied GitHub settings — the `Require GO/NO GO gate` required-check ruleset (with the road-runner-bot bypass), the `Trunk` changelog bypass, and the `Changelog write-back path guard` push ruleset — via `gh api` behind a confirmation gate, then verifies-and-reports the org/cross-repo steps it can't automate (orchestrator registration as `kind: deploy`, Claude review). It has **no** npm-release environment / OIDC / enable-Release steps — a deploy target publishes nothing. It **is** the executable form of the generation checklist at the top of this file. Dry-run first, safe to re-run.
 
-Each shared-bundle skill ships a neutral `config.example.json`. The real `config.json` is **generated on install, then committed in the consumer** (agent-skills v1.1.0 generated-config model / A-812). The template seed gitignores `.claude/skills/*/config.json` and `.agents/skills/*/config.json` so "Use this template" never copies a local resolved config into a new repo; `/initialise-versioned-repo` strips those ignore lines, runs `rheged-skills-setup`, and the spawned repo **commits** the resulting configs. Run `rheged-skills-setup` again after a fresh install or a repo-fact change (the changelog directory, `R` and `A` as the Linear issue keys); it is idempotent (a second dry-run is a no-op). The template seeds `issueKeys: ["R", "A"]` in every config copy (A-2654), so a spawned repo resolves both `r-…` branches and legacy `a-…` ones.
+Each shared-bundle skill ships a neutral `config.example.json`. The real `config.json` is **generated on install, then committed in the consumer** (agent-skills v1.1.0 generated-config model / R-812). The template seed gitignores `.claude/skills/*/config.json` and `.agents/skills/*/config.json` so "Use this template" never copies a local resolved config into a new repo; `/initialise-versioned-repo` strips those ignore lines, runs `rheged-skills-setup`, and the spawned repo **commits** the resulting configs. Run `rheged-skills-setup` again after a fresh install or a repo-fact change (the changelog directory, `R` and `A` as the Linear issue keys); it is idempotent (a second dry-run is a no-op). The template seeds `issueKeys: ["R", "A"]` in every config copy (R-2654), so a spawned repo resolves both `r-…` branches and legacy `a-…` ones.
 
-**v1.1.0 behavioural changes (A-640).** Riding along with the v1.1.0 re-sync: `/send-it` decides release-type by the change's **semantic category** (the Conventional-Commit type of the work it commits), not by which paths the diff touches; `/preflight` gains a `blockOnWarnings` knob (defaults to errors-only blocking); `/changelog` add-links is branch-scoped by default.
+**v1.1.0 behavioural changes (R-640).** Riding along with the v1.1.0 re-sync: `/send-it` decides release-type by the change's **semantic category** (the Conventional-Commit type of the work it commits), not by which paths the diff touches; `/preflight` gains a `blockOnWarnings` knob (defaults to errors-only blocking); `/changelog` add-links is branch-scoped by default.
 
-**Template-propagation note (A-776).** Committed shared skill bundles (installed with `--copy`) remain in this template as **bootstrap** so `/initialise-versioned-repo` can run immediately after "Use this template". A spawned repo then **pulls** the locked shared set once via `npx skills add … --copy` (both agents) before `rheged-skills-setup` materialises per-skill `config.json` — pull-on-instantiation, not inheritance of a frozen tree with no refresh. This template is **not** a skills push-fan-out consumer (dropped in A-774); do not re-add it to the hourly matrix.
+**Template-propagation note (R-776).** Committed shared skill bundles (installed with `--copy`) remain in this template as **bootstrap** so `/initialise-versioned-repo` can run immediately after "Use this template". A spawned repo then **pulls** the locked shared set once via `npx skills add … --copy` (both agents) before `rheged-skills-setup` materialises per-skill `config.json` — pull-on-instantiation, not inheritance of a frozen tree with no refresh. This template is **not** a skills push-fan-out consumer (dropped in R-774); do not re-add it to the hourly matrix.
 
 ## Source layout
 
 There is **no `src/` and no compiled `dist/`** — this is a content-only, non-npm deploy target
-(A-939). `package.json` is `private: true` and carries no `main`/`module`/`types`/`exports`/`files`
+(R-939). `package.json` is `private: true` and carries no `main`/`module`/`types`/`exports`/`files`
 publish surface; its role is the **version-of-record** (release-please bumps `version`, mirrored in
 `.release-please-manifest.json`) plus the dev-tooling manifest.
 
@@ -161,7 +161,7 @@ alongside it.
 
 ## Build / type-check / lint topology
 
-There is **no build, no type-check pass, and no tsconfig** — the content-only baseline (A-939)
+There is **no build, no type-check pass, and no tsconfig** — the content-only baseline (R-939)
 removed the `src/` tree and, with it, the old three-tsconfig arrangement (`tsconfig.json` /
 `tsconfig.tools.json` / `tsconfig.eslint.json`) and the `build`/`tsc` scripts. Nothing compiles;
 CI runs `build: false` and `typecheck: false` (see "Shared reusable CI callers" below).
@@ -207,9 +207,9 @@ Non-secret knobs live in **`infrastructure/repo-config.yaml`** as a declarative 
 | `defaultBranch`   | Canonical default branch; keep in sync with static `on:` triggers (GitHub cannot derive `on.push.branches` from this file). |
 | `nodeVersionFile` | The repo's canonical Node-version file (`.nvmrc`).                                                                          |
 
-The file is **not loaded by CI.** The estate's `reusable-load-repo-config.yml@v1` (A-779) hard-requires
+The file is **not loaded by CI.** The estate's `reusable-load-repo-config.yml@v1` (R-779) hard-requires
 the npm registry / scope keys (`npmRegistryUrl`, `npmScope`, `githubPackagesRegistryUrl`) that a deploy
-target doesn't carry, so those keys were **dropped** (A-941) and `ci.yml` points each job's
+target doesn't carry, so those keys were **dropped** (R-941) and `ci.yml` points each job's
 `node-version-file` at `.nvmrc` directly instead of loading this file — the reusable callers default to
 `.nvmrc` anyway. The file is kept as the canonical statement of the two knobs and is reconciled by the
 `initialise-versioned-repo` skill on a spawned repo. Secrets (`GITHUB_TOKEN`) and release-please
@@ -221,7 +221,7 @@ behaviour are not in this file. **No bot key ships in the template.**
 
 - **`pre-commit`** — runs `pnpm lint-staged`. Auto-fixes only the staged files: `prettier --write` for everything, `eslint --fix` for `**/*.{ts,tsx,js,mjs,cjs}`, `sort-package-json` + `eslint --fix` for `**/package.json`, `markdownlint-cli2 --fix` for `**/*.{md,mdx}`, `yamllint` (read-only check) for `**/*.{yml,yaml}`, `actionlint` (read-only check) for `.github/workflows/*.{yml,yaml}`. Each task is wrapped in `bash -c '… "$@" --` so the staged file paths are passed through. The auto-fixers carry an `|| true` fallback so they never block — CI is the gate. The two YAML linters are best-effort: if the tool isn't on `PATH` locally, the hook prints a platform-appropriate install hint and skips. CI still enforces.
 - **`commit-msg`** — strips any `Co-Authored-By: Claude … <noreply@anthropic.com>` trailer. Backstops the global `~/.claude/CLAUDE.md` rule (Claude is tooling, not a contributor).
-- **`pre-push`** — blocks direct pushes to `main`; humans should use `/send-it` to open a PR. Bot users (`github-actions[bot]`, `road-runner-bot[bot]`) and the release-please release commit (`chore(main): release <version>`) bypass. It also runs `pnpm lint:workflows` + `pnpm lint:yaml` as a last-line gate before CI, then a best-effort `commitlint --from origin/main --to HEAD` range check (A-1021) — skips with an installation hint if `@commitlint/cli` isn't available locally or if `origin/main` is not a resolvable ref; CI's `reusable-validate-commits` gate is still the authority. Config lives in `commitlint.config.mjs` extending `@rheged-studio/commitlint-config`.
+- **`pre-push`** — blocks direct pushes to `main`; humans should use `/send-it` to open a PR. Bot users (`github-actions[bot]`, `road-runner-bot[bot]`) and the release-please release commit (`chore(main): release <version>`) bypass. It also runs `pnpm lint:workflows` + `pnpm lint:yaml` as a last-line gate before CI, then a best-effort `commitlint --from origin/main --to HEAD` range check (R-1021) — skips with an installation hint if `@commitlint/cli` isn't available locally or if `origin/main` is not a resolvable ref; CI's `reusable-validate-commits` gate is still the authority. Config lives in `commitlint.config.mjs` extending `@rheged-studio/commitlint-config`.
 
 Hooks are dormant in CI: `ci.yml` and the reusable workflows set `HUSKY=0` so the `prepare` script no-ops during `pnpm install`.
 
@@ -229,21 +229,21 @@ To bypass any hook in an emergency: `git commit --no-verify` or `git push --no-v
 
 ## CI gate (`GO/NO GO`)
 
-`ci.yml` ends with a single **`GO/NO GO`** aggregator job — the one stable, estate-canonical gate the release-orchestrator waits on (A-412/A-424). It `needs:` every real job (`lint`, `build-test`, `changelog-completeness`), runs `if: ${{ always() }}`, and a one-line `jq` verdict over `toJSON(needs)` succeeds **iff** every job `result` is `success` or `skipped`. The `lint` and `build-test` jobs are thin callers of the shared reusable workflows (see "Shared reusable CI callers" below), each reading its Node version from `.nvmrc` directly — there is no `config`/load-repo-config job (see "GitHub Actions repo config"). The **PR-title lint runs in its own workflow** (`validate-pr-title.yml`, A-695), not inside `ci.yml`.
+`ci.yml` ends with a single **`GO/NO GO`** aggregator job — the one stable, estate-canonical gate the release-orchestrator waits on (R-412/R-424). It `needs:` every real job (`lint`, `build-test`, `changelog-completeness`), runs `if: ${{ always() }}`, and a one-line `jq` verdict over `toJSON(needs)` succeeds **iff** every job `result` is `success` or `skipped`. The `lint` and `build-test` jobs are thin callers of the shared reusable workflows (see "Shared reusable CI callers" below), each reading its Node version from `.nvmrc` directly — there is no `config`/load-repo-config job (see "GitHub Actions repo config"). The **PR-title lint runs in its own workflow** (`validate-pr-title.yml`, R-695), not inside `ci.yml`.
 
 - **Why a check-run, not a commit status.** The gate is the job's _intrinsic_ check-run, named `GO/NO GO`. A commit status is writable by any push-scoped token (forgeable); a **check-run can only be minted by a GitHub App** — here, the repo's own Actions run — so a push-scoped token or a fork contributor cannot forge it. Require it on `main` via a **ruleset pinned to the GitHub Actions integration** (`integration_id: 15368`), so nothing but this repo's Actions can satisfy it. Rulesets aren't copied by template generation — see the generation checklist.
-- **road-runner-bot bypass (A-944 / A-1019).** The `Require GO/NO GO gate` ruleset **must** list road-runner-bot as a bypass actor: the **in-repo** `changelog-enrich` job pushes `changelog/**` directly to `main` after each merge and would otherwise be rejected by the required check. Human PRs still have to satisfy `GO/NO GO` — the bypass is scoped to the bot actor. The `Trunk` ruleset carries the same bypass for its pull-request/deletion/non-fast-forward rules. npm-package templates need the same enricher bypass on GO/NO GO (A-1019) — this is estate-wide for any repo whose enricher writes back to `main` as the bot, not a deploy-target-only rule. See [README → the required-check ruleset](README.md#the-required-check-ruleset).
-- **Footguns (A-418).** The gate must **never** be path-filtered (a path-filtered required check sits Pending forever and blocks merges); `always()` is mandatory or the aggregator skips and never reports; the literal `/` and space must surface as `check_run.name == "GO/NO GO"` (they do — emoji/spaces already survive in `lint / Lint`). Fall back to explicit-create (`POST /check-runs`, Option A) only if the `/` ever misbehaves.
-- **Gate name (A-419 / A-596 / A-437).** Clacks polls the `GO/NO GO` check-run only. A-419 opened a dual-accept window (`🔬 Build & Lint` **or** `GO/NO GO`); A-596 collapsed it to `GO/NO GO`-only once every served repo emitted it, and A-437 retired the old gate role. The caller swap (A-447) had already **removed** the `🔬 Build & Lint` context from this template — replaced by `lint / Lint` + `build-test / Build & Test`. The `pr-title` job name (`pr-title / Validate PR title is a Conventional Commit`) is _also_ the estate-pinned required-check context (A-405); don't tidy it.
-- **Done (A-411 / A-447 / A-695).** The `lint` and `build-test` jobs are thin callers of `rheged-studio/shared-workflows`'s reusable `reusable-lint.yml` / `reusable-build-test.yml` (A-415/416). `pr-title` moved to its own `validate-pr-title.yml` caller (A-695). `GO/NO GO` stays put across the swaps, which is exactly why it lives here (custom per-repo) and not upstream.
+- **road-runner-bot bypass (R-944 / R-1019).** The `Require GO/NO GO gate` ruleset **must** list road-runner-bot as a bypass actor: the **in-repo** `changelog-enrich` job pushes `changelog/**` directly to `main` after each merge and would otherwise be rejected by the required check. Human PRs still have to satisfy `GO/NO GO` — the bypass is scoped to the bot actor. The `Trunk` ruleset carries the same bypass for its pull-request/deletion/non-fast-forward rules. npm-package templates need the same enricher bypass on GO/NO GO (R-1019) — this is estate-wide for any repo whose enricher writes back to `main` as the bot, not a deploy-target-only rule. See [README → the required-check ruleset](README.md#the-required-check-ruleset).
+- **Footguns (R-418).** The gate must **never** be path-filtered (a path-filtered required check sits Pending forever and blocks merges); `always()` is mandatory or the aggregator skips and never reports; the literal `/` and space must surface as `check_run.name == "GO/NO GO"` (they do — emoji/spaces already survive in `lint / Lint`). Fall back to explicit-create (`POST /check-runs`, Option A) only if the `/` ever misbehaves.
+- **Gate name (R-419 / R-596 / R-437).** Clacks polls the `GO/NO GO` check-run only. R-419 opened a dual-accept window (`🔬 Build & Lint` **or** `GO/NO GO`); R-596 collapsed it to `GO/NO GO`-only once every served repo emitted it, and R-437 retired the old gate role. The caller swap (R-447) had already **removed** the `🔬 Build & Lint` context from this template — replaced by `lint / Lint` + `build-test / Build & Test`. The `pr-title` job name (`pr-title / Validate PR title is a Conventional Commit`) is _also_ the estate-pinned required-check context (R-405); don't tidy it.
+- **Done (R-411 / R-447 / R-695).** The `lint` and `build-test` jobs are thin callers of `rheged-studio/shared-workflows`'s reusable `reusable-lint.yml` / `reusable-build-test.yml` (R-415/416). `pr-title` moved to its own `validate-pr-title.yml` caller (R-695). `GO/NO GO` stays put across the swaps, which is exactly why it lives here (custom per-repo) and not upstream.
 
-## Shared reusable CI callers (A-447)
+## Shared reusable CI callers (R-447)
 
-The `lint` and `build-test` jobs in `ci.yml` are thin callers of the estate's shared reusable workflows — the template is the **reference consumer** that proves the pattern before the fleet rollout (A-420). Both float on the shared-workflows `@v1` major tag so non-breaking releases arrive without a per-release Dependabot SHA bump (A-662 / A-672).
+The `lint` and `build-test` jobs in `ci.yml` are thin callers of the estate's shared reusable workflows — the template is the **reference consumer** that proves the pattern before the fleet rollout (R-420). Both float on the shared-workflows `@v1` major tag so non-breaking releases arrive without a per-release Dependabot SHA bump (R-662 / R-672).
 
-- **`lint`** → `reusable-lint.yml` runs ESLint + markdownlint + yamllint/actionlint + dated-changelog validation in one job (`lint / Lint`). Inputs: `eslint-args` passes **directory paths** (`infrastructure/tests`), not globs — the Layer-1 action runs `eslint $ESLINT_ARGS` word-split with bash `globstar` off, so a `**` glob would mis-expand; directories let ESLint's flat config resolve the file set recursively. ESLint is re-scoped off the (removed) `src/` onto the repo's first-party `infrastructure/tests/**` `.mjs` (A-940) — scoped to `infrastructure/tests` rather than the whole `infrastructure/` tree on purpose (the shared eslint-config's YAML rules would double-lint `repo-config.yaml`, which the yaml lane owns; and `infrastructure/scripts` is shell-only, where ESLint errors when every file under a directory is ignored). `markdown-globs` mirrors the `lint:md` script; `changelog-script: validate:changelog` (the repo's script name; the reusable default is `changelog:validate`). The yaml lane uses **actionlint 1.7.12** (the reusable default, owned upstream in lockstep per A-422 — _not_ the `1.7.5` the local `ensure-actionlint.sh` pins) and shared-workflows' **centralised `.yamllint.yml`** (A-438), so the repo's local `.yamllint.yml` now only feeds the pre-commit hook.
-- **`build-test`** → `reusable-build-test.yml` runs Vitest + ShellCheck + bats (`build-test / Build & Test`). **`build: false` and `typecheck: false`** — the content-only baseline (A-939) has no `src/` to compile and no tsconfig to type-check, so there is no verification build or type-check to run. `shellcheck-paths` passes the scripts dir + the three extensionless husky hooks explicitly (the action `find`s `*.sh/*.bash` under directories but takes files literally). `bats: true` runs `pnpm exec bats` — which is why **`bats` is a devDependency** (`bats@1.13.0`, matching `ensure-bats.sh`'s pin); the tests are self-contained (no `bats-support`/`bats-assert`).
-- **No `config` job.** The reusable callers default `node-version-file` to `.nvmrc`, so each job (`lint`, `build-test`, and the inline `changelog-completeness`) sets `node-version-file: .nvmrc` directly. The estate's `reusable-load-repo-config.yml@v1` is deliberately **not** used: it hard-requires the npm registry/scope keys a deploy target doesn't carry (A-941).
+- **`lint`** → `reusable-lint.yml` runs ESLint + markdownlint + yamllint/actionlint + dated-changelog validation in one job (`lint / Lint`). Inputs: `eslint-args` passes **directory paths** (`infrastructure/tests`), not globs — the Layer-1 action runs `eslint $ESLINT_ARGS` word-split with bash `globstar` off, so a `**` glob would mis-expand; directories let ESLint's flat config resolve the file set recursively. ESLint is re-scoped off the (removed) `src/` onto the repo's first-party `infrastructure/tests/**` `.mjs` (R-940) — scoped to `infrastructure/tests` rather than the whole `infrastructure/` tree on purpose (the shared eslint-config's YAML rules would double-lint `repo-config.yaml`, which the yaml lane owns; and `infrastructure/scripts` is shell-only, where ESLint errors when every file under a directory is ignored). `markdown-globs` mirrors the `lint:md` script; `changelog-script: validate:changelog` (the repo's script name; the reusable default is `changelog:validate`). The yaml lane uses **actionlint 1.7.12** (the reusable default, owned upstream in lockstep per R-422 — _not_ the `1.7.5` the local `ensure-actionlint.sh` pins) and shared-workflows' **centralised `.yamllint.yml`** (R-438), so the repo's local `.yamllint.yml` now only feeds the pre-commit hook.
+- **`build-test`** → `reusable-build-test.yml` runs Vitest + ShellCheck + bats (`build-test / Build & Test`). **`build: false` and `typecheck: false`** — the content-only baseline (R-939) has no `src/` to compile and no tsconfig to type-check, so there is no verification build or type-check to run. `shellcheck-paths` passes the scripts dir + the three extensionless husky hooks explicitly (the action `find`s `*.sh/*.bash` under directories but takes files literally). `bats: true` runs `pnpm exec bats` — which is why **`bats` is a devDependency** (`bats@1.13.0`, matching `ensure-bats.sh`'s pin); the tests are self-contained (no `bats-support`/`bats-assert`).
+- **No `config` job.** The reusable callers default `node-version-file` to `.nvmrc`, so each job (`lint`, `build-test`, and the inline `changelog-completeness`) sets `node-version-file: .nvmrc` directly. The estate's `reusable-load-repo-config.yml@v1` is deliberately **not** used: it hard-requires the npm registry/scope keys a deploy target doesn't carry (R-941).
 
 The callers run on **all** branches including `release-please--*` (no skip), so the changelog lane validates the finalised entries before the release PR merges.
 
@@ -251,20 +251,20 @@ The `ensure-actionlint.sh` / `ensure-yamllint.sh` / `ensure-bats.sh` scripts (an
 
 ## Validating workflows and YAML
 
-Two non-Node tools augment Prettier's formatting pass with the semantic checks Prettier can't see (Actions schema, `${{ … }}` expression typos, duplicate keys, etc.). Since A-447, **CI runs them inside the `lint` reusable caller** (the yaml lane), not inline — so the install scripts below are the **local/pre-commit + reference** path. Note the version split: the reusable workflow pins **actionlint 1.7.12** (and yamllint 1.37.1); the local `ensure-actionlint.sh` still pins **1.7.5**.
+Two non-Node tools augment Prettier's formatting pass with the semantic checks Prettier can't see (Actions schema, `${{ … }}` expression typos, duplicate keys, etc.). Since R-447, **CI runs them inside the `lint` reusable caller** (the yaml lane), not inline — so the install scripts below are the **local/pre-commit + reference** path. Note the version split: the reusable workflow pins **actionlint 1.7.12** (and yamllint 1.37.1); the local `ensure-actionlint.sh` still pins **1.7.5**.
 
 - **`actionlint` v1.7.5 (local)** — Go binary. Local install: `brew install actionlint` (macOS) or `bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.5/scripts/download-actionlint.bash)` elsewhere.
 - **`yamllint` 1.37.1** — Python tool. Local install: `brew install yamllint` (macOS) or `pip install --user yamllint==1.37.1` elsewhere.
 
-**Digest-pinned bootstraps (A-327).** The CI install scripts for these tools fetch-and-execute third-party code, so each is pinned by digest, not just a mutable tag:
+**Digest-pinned bootstraps (R-327).** The CI install scripts for these tools fetch-and-execute third-party code, so each is pinned by digest, not just a mutable tag:
 
-- `ensure-actionlint.sh` fetches `download-actionlint.bash` from the **immutable commit SHA** of the v1.7.5 tag (not the `v1.7.5` tag), passes the version explicitly so it installs that exact release, then independently re-verifies the extracted binary against a pinned sha256 (enforced on the CI arch, linux/amd64). It also **version-gates the cached binary** and **drops the cache `restore-keys` fallback** (A-349), so a version bump forces a clean reinstall instead of silently restoring a stale binary.
+- `ensure-actionlint.sh` fetches `download-actionlint.bash` from the **immutable commit SHA** of the v1.7.5 tag (not the `v1.7.5` tag), passes the version explicitly so it installs that exact release, then independently re-verifies the extracted binary against a pinned sha256 (enforced on the CI arch, linux/amd64). It also **version-gates the cached binary** and **drops the cache `restore-keys` fallback** (R-349), so a version bump forces a clean reinstall instead of silently restoring a stale binary.
 - `ensure-bats.sh` verifies the downloaded release tarball against a pinned sha256 before extraction.
 - `ensure-yamllint.sh` installs via `pip install --require-hashes -r infrastructure/requirements-yamllint.txt`, so pip refuses any artefact — yamllint or a transitive dep — whose digest isn't listed. Regenerate that file when bumping (see its header).
 
 When bumping any of these, update the version **and** the matching digest/requirements together. The same install-and-verify discipline now lives in the shared reusable workflows' read-scoped jobs.
 
-Configuration: `.yamllint.yml` at the repo root extends defaults, demotes line-length / indentation to warnings (Prettier owns formatting), allows the GitHub Actions truthy values (`on`, `off`, `yes`, `no`), and ignores `node_modules/`, `dist/`, `.turbo/`, `pnpm-lock.yaml`. **Local + pre-commit only** since A-447 — CI's yaml lane uses shared-workflows' centralised config (A-438). No `.actionlintrc.yaml` — defaults are fine for this repo.
+Configuration: `.yamllint.yml` at the repo root extends defaults, demotes line-length / indentation to warnings (Prettier owns formatting), allows the GitHub Actions truthy values (`on`, `off`, `yes`, `no`), and ignores `node_modules/`, `dist/`, `.turbo/`, `pnpm-lock.yaml`. **Local + pre-commit only** since R-447 — CI's yaml lane uses shared-workflows' centralised config (R-438). No `.actionlintrc.yaml` — defaults are fine for this repo.
 
 Enforcement: pre-commit is best-effort (skip with install hint when missing); CI is the `lint` reusable caller's yaml lane (`lint / Lint`), always enforced. The local install-and-run logic for both tools lives in `infrastructure/scripts/ensure-yamllint.sh` and `ensure-actionlint.sh` — now CI-unused but kept as unit-tested reference (see `infrastructure/README.md`).
 
@@ -325,9 +325,9 @@ Changelog validate / completeness / enrich are provided by
 `@rheged-studio/changelog-core` (`pnpm validate:changelog`,
 `pnpm exec changelog-core check-completeness`). Post-merge write-back is the
 in-repo `changelog-enrich.yml` workflow calling
-`reusable-changelog-enrich.yml` in `mode: enrich` (A-944 / A-821).
+`reusable-changelog-enrich.yml` in `mode: enrich` (R-944 / R-821).
 
-CI (A-447): the `build-test` reusable caller runs ShellCheck (`infrastructure/scripts` + the husky hooks), Vitest, and bats (`pnpm exec bats`, so `bats` is a devDependency) against this directory; the `lint` caller runs `validate:changelog`; the `changelog-completeness` job runs the completeness gate. Locally, `pnpm lint:sh` / `pnpm test:sh` skip with install hints if `shellcheck` / `bats` aren't on PATH — `pnpm test` (vitest) always runs because vitest is a node devDep.
+CI (R-447): the `build-test` reusable caller runs ShellCheck (`infrastructure/scripts` + the husky hooks), Vitest, and bats (`pnpm exec bats`, so `bats` is a devDependency) against this directory; the `lint` caller runs `validate:changelog`; the `changelog-completeness` job runs the completeness gate. Locally, `pnpm lint:sh` / `pnpm test:sh` skip with install hints if `shellcheck` / `bats` aren't on PATH — `pnpm test` (vitest) always runs because vitest is a node devDep.
 
 > `eslint.config.ts` scopes a `devDependencies: true` + `complexity: off` override to `infrastructure/**` for the branchy ensure-\* reference scripts and the init-skill `.mjs`.
 
@@ -335,11 +335,11 @@ When adding workflow-extracted tooling, write the test first, then wire from YAM
 
 ## Dated changelog (`changelog/`)
 
-The `changelog/` directory is the **only** changelog in the repo — there is no root `CHANGELOG.md` (release-please runs with `skip-changelog`, A-371). It keeps **one dated Markdown file per PR** — a browsable, per-change, machine-readable record. (The `version` field exists for octavo-schema parity but stays **blank** on this deploy target: the in-repo `mode: enrich` path never stamps it and there is no `finalise` step — see the lifecycle below.) The release-orchestrator sources its GitHub-Release notes from the **release-please PR body**, not from the changelog entries. Full schema and lifecycle in **`changelog/README.md`**. The template ships only that README; the first real entry is written by `/send-it`.
+The `changelog/` directory is the **only** changelog in the repo — there is no root `CHANGELOG.md` (release-please runs with `skip-changelog`, R-371). It keeps **one dated Markdown file per PR** — a browsable, per-change, machine-readable record. (The `version` field exists for octavo-schema parity but stays **blank** on this deploy target: the in-repo `mode: enrich` path never stamps it and there is no `finalise` step — see the lifecycle below.) The release-orchestrator sources its GitHub-Release notes from the **release-please PR body**, not from the changelog entries. Full schema and lifecycle in **`changelog/README.md`**. The template ships only that README; the first real entry is written by `/send-it`.
 
 Two-stage lifecycle — post-merge enrichment runs **in-repo** via `changelog-enrich.yml`
-(calling `reusable-changelog-enrich.yml`, `mode: enrich`) on every push to `main` (A-944; following
-A-796 / A-800 / A-821). The old central `enrich-changelogs.yml` orchestrator cron is retired (A-801).
+(calling `reusable-changelog-enrich.yml`, `mode: enrich`) on every push to `main` (R-944; following
+R-796 / R-800 / R-821). The old central `enrich-changelogs.yml` orchestrator cron is retired (R-801).
 
 1. **PR-time** — `/send-it` writes `changelog/<YYYYMMDD-HHMMSS>-<slug>.md` with the PR-time fields (and empty enrichment placeholders) for **every** PR under the "record everything, filter later" model — a non-release entry simply stays version-less and is filtered out of release notes. The entry merges to `main` with its PR and sits with placeholders until post-merge enrich. CI's changelog-completeness gate enforces the one hard coupling: a release-triggering `feat`/`fix`/breaking PR title **must** carry an entry.
 2. **Post-merge (in-repo)** — `changelog-enrich.yml` (`mode: enrich`) resolves the just-merged PR and fills `merged_at`/`commit`/`pr`/`stats` via `changelog-core enrich`. Write-back pushes only `changelog/**` as `road-runner-bot[bot]` (ADR 0004) via an App token minted from the org-wide `ROADRUNNER_*` secrets (`secrets: inherit`). `mode: enrich` is the **deploy-target mode**: it fills only `merged_at`/`commit`/`pr`/`stats` and does **not** stamp `version` (contrast the npm targets' `mode: finalise`, which reads the just-bumped `package.json` version). Nothing in the deploy path stamps it afterwards either — the orchestrator's release cut reads the version from `.release-please-manifest.json` and sources its notes from the release-please PR body — so on this deploy target `version` stays blank. App-token pushes re-fire the workflow; the reusable's "no associated PR" path is the loop guard (a bot enrich commit has no PR → clean no-op).
@@ -359,21 +359,21 @@ version-of-record (`package.json` + `.release-please-manifest.json`) and the rel
 release-please is configured (`release-please-config.json`) as a single `"."` package with
 `release-type: node`, `include-v-in-tag: true`, `bump-minor-pre-major: true`, `skip-changelog: true`,
 `separate-pull-requests: false`, and the mandatory
-`group-pull-request-title-pattern: "chore${scope}: release${component} ${version}"` (A-677 — the
+`group-pull-request-title-pattern: "chore${scope}: release${component} ${version}"` (R-677 — the
 group-title pattern is what lets the orchestrator recognise and merge the release PR).
 
-1. Make changes on a feature branch; `/send-it` bundles, writes the dated `changelog/<slug>.md` entry (for every PR), sets a **Conventional Commits PR title** (`feat`/`fix`/`feat!` for a release, a non-release type otherwise), pushes, opens a PR. Feature PRs land as **merge commits**; release-please ranks Conventional Commits on `main` (A-824). Conventional PR titles stay required (CI `validate-pr-title`) but are no longer the sole post-merge bump signal. CI (`ci.yml`) runs lint + test, the changelog-completeness gate, and (via `validate-pr-title.yml`) the conventional-PR-title lint.
+1. Make changes on a feature branch; `/send-it` bundles, writes the dated `changelog/<slug>.md` entry (for every PR), sets a **Conventional Commits PR title** (`feat`/`fix`/`feat!` for a release, a non-release type otherwise), pushes, opens a PR. Feature PRs land as **merge commits**; release-please ranks Conventional Commits on `main` (R-824). Conventional PR titles stay required (CI `validate-pr-title`) but are no longer the sole post-merge bump signal. CI (`ci.yml`) runs lint + test, the changelog-completeness gate, and (via `validate-pr-title.yml`) the conventional-PR-title lint.
 2. After merge, **Clacks** (road-runner-bot, runs a cron) mints a short-lived repo-scoped App token, runs `release-please release-pr` (which infers the bump from Conventional Commits on `main` and writes `package.json` + `.release-please-manifest.json`), pushes the `release-please--branches--main` branch, and opens the "`chore(main): release <version>`" release PR. On a later tick it **squash-merges** that release PR once the `GO/NO GO` check-run is green. Fan-out PRs also stay squash.
 3. The orchestrator's App-token merge pushes to `main`. Because this is a `kind: deploy` repo, the orchestrator then **cuts the git tag (`v<version>`) and the GitHub Release directly** — reading `v<version>` from `.release-please-manifest.json` and sourcing the notes from the **release-please PR body** (its grouped release notes) — there is no in-repo workflow to trigger. In parallel, the in-repo `changelog-enrich.yml` job (`mode: enrich`) fills the post-merge changelog metadata (`merged_at`/`commit`/`pr`/`stats`); it does **not** stamp `version`, and no other step does either, so `version` stays blank on this deploy target's entries.
 
-**The A-326 cross-boundary publish hardening is moot here.** npm Trusted Publishing binds an OIDC
+**The R-326 cross-boundary publish hardening is moot here.** npm Trusted Publishing binds an OIDC
 subject to repository + workflow filename, so the npm-package template needed a `no-workflow_dispatch`
 caller, a branch-restricted `npm-release` environment, and an explicit ref guard to stop an arbitrary
 ref minting a publish credential. A deploy target mints **no** publish credential and runs **no**
 privileged publish job, so none of that applies — there is nothing publishable to protect.
 
 **Choosing the bump.** There is no changeset file. Feature PRs land as **merge commits**;
-release-please ranks Conventional Commits on `main` to decide the bump (A-824):
+release-please ranks Conventional Commits on `main` to decide the bump (R-824):
 `fix:`/`perf:`/`revert:` → patch, `feat:` → minor, a `!` breaking marker (or a
 `BREAKING CHANGE:` footer) → major. Conventional **PR titles** stay required (CI
 `validate-pr-title`) but are no longer the sole post-merge bump signal for feature work —

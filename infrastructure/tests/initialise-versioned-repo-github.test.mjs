@@ -1,10 +1,10 @@
 // Unit tests for the initialise-versioned-repo skill's GitHub-settings logic
-// (A-946 / A-944). A fake runner records the `gh` argv and returns canned API
+// (R-946 / R-944). A fake runner records the `gh` argv and returns canned API
 // responses, so we assert both the idempotent "already present → no mutation"
 // path and the "absent → correct gh api call" path without touching a real repo.
 //
 // A deploy target applies THREE rulesets and NOTHING else: the GO/NO GO
-// required-check ruleset (with the road-runner-bot bypass — A-944), the Trunk
+// required-check ruleset (with the road-runner-bot bypass — R-944), the Trunk
 // changelog bypass, and the changelog write-back path guard. There is no
 // npm-release environment and no in-repo Release workflow to enable.
 
@@ -72,9 +72,9 @@ describe("goNoGoRulesetPayload", () => {
     ]);
   });
 
-  it("carries the road-runner-bot bypass (A-944)", () => {
+  it("carries the road-runner-bot bypass (R-944)", () => {
     // changelog-enrich pushes changelog/** to main as road-runner-bot and must
-    // clear the required check (same estate-wide bypass as npm templates — A-1019).
+    // clear the required check (same estate-wide bypass as npm templates — R-1019).
     expect(goNoGoRulesetPayload().bypass_actors).toEqual([
       {
         actor_id: ROADRUNNER_APP_ID,
@@ -478,7 +478,7 @@ describe("ensureChangelogPathGuard", () => {
     expect(payload.name).toBe(PATH_GUARD_RULESET_NAME);
     expect(payload.target).toBe("push");
     // Repo-level push rulesets require a non-null conditions object — GitHub
-    // rejects `conditions: null` with HTTP 422 (A-930).
+    // rejects `conditions: null` with HTTP 422 (R-930).
     expect(payload.conditions).toEqual({});
     expect(payload.enforcement).toBe("active");
     expect(payload.rules[0].type).toBe("file_path_restriction");

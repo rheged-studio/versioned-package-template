@@ -1,21 +1,21 @@
 name: Changelog enrich
 
-# Post-merge dated-changelog enrich for this versioned deploy target (A-944,
-# following A-796 / A-800 / A-821). Fills the post-merge metadata
+# Post-merge dated-changelog enrich for this versioned deploy target (R-944,
+# following R-796 / R-800 / R-821). Fills the post-merge metadata
 # (merged_at / commit / pr / stats) on every push to main, in-repo — this repo
 # does not depend on the release-orchestrator's retired central changelog cron
-# (A-801). `mode: enrich` is the deploy-target mode (no version stamping — the
+# (R-801). `mode: enrich` is the deploy-target mode (no version stamping — the
 # orchestrator cuts the tag; see the reusable workflow's mode docs).
 #
 # Never pull_request_target. Write-back is a direct push of `changelog/**` to
 # main as road-runner-bot[bot] via an App token, so `secrets: inherit` is
 # required (ROADRUNNER_PRIVATE_KEY / ROADRUNNER_CLIENT_ID, org-wide). The repo's
 # `Trunk` ruleset lists road-runner-bot as an `always` bypass actor so that push
-# is accepted (ADR 0004 / A-794). App-token pushes re-fire this workflow; the
+# is accepted (ADR 0004 / R-794). App-token pushes re-fire this workflow; the
 # reusable's "no associated PR" path is the loop guard (a bot enrich commit has
 # no PR → clean no-op).
 #
-# Pin is the A-821 merge SHA until a release that includes it moves @v1
+# Pin is the R-821 merge SHA until a release that includes it moves @v1
 # (mirrors the octavo / shared-workflows exemplars).
 on:
   push:

@@ -1,4 +1,4 @@
-// Unit tests for the initialise-versioned-repo shared-skills pull (A-776).
+// Unit tests for the initialise-versioned-repo shared-skills pull (R-776).
 // Asserts argv construction (locked skill set, both agents, --copy, no -g) and
 // that dry-run never spawns while write records the runner call + status.
 

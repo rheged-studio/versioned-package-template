@@ -12,7 +12,7 @@ co_authors: []
 category: chore
 breaking: false
 issues:
-  - A-2318
+  - R-2318
 stats:
   files_changed: 121
   loc_added: 6490
@@ -21,7 +21,7 @@ stats:
 
 ## Changed
 
-**Roll shared agent bundles to current catalogue ([A-2318](https://linear.app/rheged-studio/issue/A-2318), parent [A-2299](https://linear.app/rheged-studio/issue/A-2299))**
+**Roll shared agent bundles to current catalogue ([R-2318](https://linear.app/rheged-studio/issue/R-2318), parent [R-2299](https://linear.app/rheged-studio/issue/R-2299))**
 
 - Re-vendor Rheged and Matt skills on `.claude` and `.agents` mirrors via `fleet-update.mjs`
 - Drop upstream-removed `resolving-merge-conflicts`; add `implement-spec`, `pr` and `retro`

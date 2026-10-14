@@ -12,7 +12,7 @@ co_authors: []
 category: chore
 breaking: false
 issues:
-  - A-2079
+  - R-2079
 stats:
   loc_added: 124
   loc_removed: 26
@@ -21,7 +21,7 @@ stats:
 
 ## Changed
 
-**Re-vendor `send-it` and `commit` from agent-skills `main` ([A-2079](https://linear.app/rheged-studio/issue/A-2079))**
+**Re-vendor `send-it` and `commit` from agent-skills `main` ([R-2079](https://linear.app/rheged-studio/issue/R-2079))**
 
 - Bump `send-it` 0.8.2 → 0.9.1 (72-character conventional commit header guidance)
 - Bump `commit` 0.1.3 → 0.2.0 on `.claude` and `.agents` mirrors; refresh `skills-lock.json` hashes

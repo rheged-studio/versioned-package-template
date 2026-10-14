@@ -29,7 +29,7 @@ updates:
     # — Conventional, and a no-release type under the release-please bump rules,
     # so a dependency bump never cuts a version on its own. Both prefixes are
     # set explicitly: `prefix` alone leaves development-dependency bumps on
-    # Dependabot's own default. See A-980 / A-823.
+    # Dependabot's own default. See R-980 / R-823.
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
