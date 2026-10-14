@@ -1,6 +1,6 @@
 {
   "linearTeamName": "Rheged Studio",
-  "issueKeys": ["R", "A"],
+  "issueKeys": ["R"],
   "mainBranch": "main",
   "protectedBranches": ["main"]
 }

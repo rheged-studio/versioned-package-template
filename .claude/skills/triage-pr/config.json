@@ -8,7 +8,7 @@
   "reviewIdleMinutes": 5,
   "reviewWaitMaxMinutes": 20,
   "linearTeamName": "Rheged Studio",
-  "issueKeys": ["R", "A"],
+  "issueKeys": ["R"],
   "followUpLabel": "follow-up",
   "followUpProject": "Follow-up issues",
   "followUpState": "Backlog",

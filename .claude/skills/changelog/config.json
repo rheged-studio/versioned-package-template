@@ -1,5 +1,5 @@
 {
-  "issueKeys": ["R", "A"],
+  "issueKeys": ["R"],
   "linearWorkspaceSlug": "rheged-studio",
   "baseBranch": "main",
   "changelogDir": "changelog",
